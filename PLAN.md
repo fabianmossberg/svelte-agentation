@@ -24,7 +24,7 @@ Strategy decisions already taken:
 - [x] Create a SvelteKit library package (pnpm, `@sveltejs/package`,
       `svelte@^5`, TypeScript, vitest + jsdom, publint). Package name:
       `svelte-agentation`.
-- [ ] `src/lib/` mirrors upstream `package/src/`:
+- [x] `src/lib/` mirrors upstream `package/src/`:
       `types.ts`, `utils/`, `components/`, `index.ts`.
 - [ ] Playground route (`src/routes/`) with a realistic demo page to annotate
       — used for manual testing throughout.
