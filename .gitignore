@@ -1,8 +1,19 @@
 # dependencies / build
 node_modules/
 dist/
+/build
 .svelte-kit/
 .vite/
+
+# Output
+.output
+.vercel
+.netlify
+.wrangler
+
+# Vite
+vite.config.js.timestamp-*
+vite.config.ts.timestamp-*
 
 # the pinned upstream clone (see UPSTREAM.md / scripts/upstream.sh)
 upstream/
@@ -13,8 +24,10 @@ __pycache__/
 .env
 .env.*
 !.env.example
+!.env.test
 *.log
 .DS_Store
+Thumbs.db
 
 # editors
 .idea/
