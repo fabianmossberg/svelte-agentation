@@ -1,0 +1,21 @@
+# dependencies / build
+node_modules/
+dist/
+.svelte-kit/
+.vite/
+
+# the pinned upstream clone (see UPSTREAM.md / scripts/upstream.sh)
+upstream/
+
+__pycache__/
+
+# env & local
+.env
+.env.*
+!.env.example
+*.log
+.DS_Store
+
+# editors
+.idea/
+*.swp

@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The repo bootstraps before the package scaffold exists (PLAN.md
+      # Phase 0). Every build step is guarded so CI is green from day one
+      # and activates automatically when package.json lands.
+      - name: Detect scaffold
+        id: scaffold
+        run: echo "exists=$([ -f package.json ] && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+      - uses: pnpm/action-setup@v4
+        if: steps.scaffold.outputs.exists == 'true'
+
+      - uses: actions/setup-node@v4
+        if: steps.scaffold.outputs.exists == 'true'
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install
+        if: steps.scaffold.outputs.exists == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Check
+        if: steps.scaffold.outputs.exists == 'true'
+        run: pnpm check
+
+      - name: Lint
+        if: steps.scaffold.outputs.exists == 'true'
+        run: pnpm lint
+
+      - name: Test
+        if: steps.scaffold.outputs.exists == 'true'
+        run: pnpm test
+
+      - name: Build
+        if: steps.scaffold.outputs.exists == 'true'
+        run: pnpm build
+
+      - name: Pre-scaffold notice
+        if: steps.scaffold.outputs.exists == 'false'
+        run: echo "No package.json yet (PLAN.md Phase 0 pending) — nothing to build."

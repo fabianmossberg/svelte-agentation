@@ -1,0 +1,32 @@
+name: Compatibility bug
+description: Our output/schema/protocol deviates from upstream agentation — highest priority issue type
+title: "compat: <what deviates>"
+labels: ["type:compat"]
+body:
+  - type: textarea
+    id: deviation
+    attributes:
+      label: Observed deviation
+      description: What we produce vs what upstream produces, for the same input/interaction.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction
+      description: Annotation fixture / playground steps / MCP call sequence that exposes the difference.
+    validations:
+      required: true
+  - type: input
+    id: upstream-ref
+    attributes:
+      label: Upstream reference
+      description: upstream/package/src/… file defining the correct behavior (at the UPSTREAM.md pin)
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected (upstream) behavior
+    validations:
+      required: true

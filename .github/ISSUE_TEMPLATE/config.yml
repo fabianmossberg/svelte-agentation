@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Upstream (benjitaylor/agentation) bugs
+    url: https://github.com/benjitaylor/agentation/issues
+    about: Bugs that reproduce in the React original belong upstream, not here.
