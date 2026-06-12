@@ -23,6 +23,7 @@ upstream/
 src/lib/utils/element-identification.ts
 src/lib/utils/storage.ts
 src/lib/utils/freeze-animations.ts
+src/lib/utils/screenshot.ts
 
 # Miscellaneous
 /static/
