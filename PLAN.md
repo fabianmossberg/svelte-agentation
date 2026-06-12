@@ -46,7 +46,7 @@ names identical:
       DOM traversal, nearby text/elements, computed styles, a11y info.
 - [x] `utils/storage.ts` — localStorage persistence, sync markers, sessions.
 - [x] `utils/freeze-animations.ts` — timer/RAF/CSS animation pause.
-- [ ] `utils/screenshot.ts` — DOM-to-canvas capture + drawing strokes.
+- [x] `utils/screenshot.ts` — DOM-to-canvas capture + drawing strokes.
 - [ ] `utils/sync.ts` — fetch client for the server protocol (sessions,
       annotations, actions).
 - [ ] `utils/generate-output.ts` — markdown generator, 4 detail levels
