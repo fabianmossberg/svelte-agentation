@@ -42,7 +42,7 @@ names identical:
 - [x] `types.ts` — the `Annotation` schema (~25 fields). Also move
       `OutputDetailLevel` and `ReactComponentMode` here (upstream leaks them
       from the toolbar component; flagged in RESEARCH.md).
-- [ ] `utils/element-identification.ts` — element naming, DOM paths, shadow
+- [x] `utils/element-identification.ts` — element naming, DOM paths, shadow
       DOM traversal, nearby text/elements, computed styles, a11y info.
 - [ ] `utils/storage.ts` — localStorage persistence, sync markers, sessions.
 - [ ] `utils/freeze-animations.ts` — timer/RAF/CSS animation pause.

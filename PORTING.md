@@ -19,7 +19,7 @@ code change. Upstream paths are relative to `upstream/package/src/`; ours to
 | Upstream | Ours | Mode | Status | Divergences |
 |---|---|---|---|---|
 | `types.ts` | `types.ts` | adapted | done (#6) | absorbed `OutputDetailLevel` + `ReactComponentMode` from `components/page-toolbar-css/index.tsx` (upstream leaks them; see RESEARCH.md) — each marked `// DIVERGENCE(upstream):` at the site |
-| `utils/element-identification.ts` | `utils/element-identification.ts` | verbatim | not started | — |
+| `utils/element-identification.ts` | `utils/element-identification.ts` | verbatim | done (#7) | byte-identical (`diff` empty); excluded from Prettier in `.prettierignore` to preserve upstream's 2-space/double-quote style — ESLint still lints it. New jsdom unit tests added (upstream ships none). |
 | `utils/storage.ts` | `utils/storage.ts` | verbatim | not started | — |
 | `utils/freeze-animations.ts` | `utils/freeze-animations.ts` | verbatim | not started | — |
 | `utils/screenshot.ts` | `utils/screenshot.ts` | verbatim | not started | — |
@@ -45,6 +45,7 @@ code change. Upstream paths are relative to `upstream/package/src/`; ours to
 
 | Upstream | Ours | Mode | Status | Divergences |
 |---|---|---|---|---|
+| (none upstream) | `utils/element-identification.test.ts` | n/a (new) | done (#7) | upstream ships no test for this module; new jsdom unit tests cover identify/path/shadow/nearby/classes/a11y |
 | `utils/react-detection.test.ts` | — | skipped | n/a | tests a skipped file |
 | `utils/source-location.test.ts` | — | skipped | n/a | tests a skipped file |
 | `components/page-toolbar-css/index.test.tsx` | rewritten per component | rewritten | not started | — |

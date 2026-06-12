@@ -13,6 +13,15 @@ build/
 # Pinned upstream clone (see UPSTREAM.md / scripts/upstream.sh)
 upstream/
 
+# Verbatim ports (PORTING.md mode `verbatim`): these must stay byte-identical
+# to upstream so releases apply as diffs — `diff upstream/package/src/<f>
+# src/lib/<f>` is required to be empty (CLAUDE.md non-negotiable #3). Upstream's
+# 2-space/double-quote style differs from this repo's Prettier config, so we
+# exclude verbatim files from Prettier rather than reformat them. ESLint still
+# lints them (eslint-config-prettier disables only the stylistic rules). Add
+# each new verbatim port here as it lands.
+src/lib/utils/element-identification.ts
+
 # Miscellaneous
 /static/
 
