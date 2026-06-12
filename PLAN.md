@@ -28,7 +28,7 @@ Strategy decisions already taken:
       `types.ts`, `utils/`, `components/`, `index.ts`.
 - [x] Playground route (`src/routes/`) with a realistic demo page to annotate
       — used for manual testing throughout.
-- [ ] Add `LICENSE` (PolyForm Shield 1.0.0, upstream copyright + ours),
+- [x] Add `LICENSE` (PolyForm Shield 1.0.0, upstream copyright + ours),
       attribution section in README.
 
 **Done when:** `pnpm build` produces a publishable (unpublished) package and
