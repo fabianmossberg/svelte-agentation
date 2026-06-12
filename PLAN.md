@@ -26,7 +26,7 @@ Strategy decisions already taken:
       `svelte-agentation`.
 - [x] `src/lib/` mirrors upstream `package/src/`:
       `types.ts`, `utils/`, `components/`, `index.ts`.
-- [ ] Playground route (`src/routes/`) with a realistic demo page to annotate
+- [x] Playground route (`src/routes/`) with a realistic demo page to annotate
       — used for manual testing throughout.
 - [ ] Add `LICENSE` (PolyForm Shield 1.0.0, upstream copyright + ours),
       attribution section in README.
