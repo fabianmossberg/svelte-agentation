@@ -18,7 +18,7 @@ code change. Upstream paths are relative to `upstream/package/src/`; ours to
 
 | Upstream | Ours | Mode | Status | Divergences |
 |---|---|---|---|---|
-| `types.ts` | `types.ts` | adapted | not started | will absorb `OutputDetailLevel` + `ReactComponentMode` from the toolbar component (upstream leaks them; see RESEARCH.md) |
+| `types.ts` | `types.ts` | adapted | done (#6) | absorbed `OutputDetailLevel` + `ReactComponentMode` from `components/page-toolbar-css/index.tsx` (upstream leaks them; see RESEARCH.md) — each marked `// DIVERGENCE(upstream):` at the site |
 | `utils/element-identification.ts` | `utils/element-identification.ts` | verbatim | not started | — |
 | `utils/storage.ts` | `utils/storage.ts` | verbatim | not started | — |
 | `utils/freeze-animations.ts` | `utils/freeze-animations.ts` | verbatim | not started | — |

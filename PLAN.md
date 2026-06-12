@@ -39,7 +39,7 @@ the playground renders.
 Port these upstream files with minimal changes, keeping paths and exported
 names identical:
 
-- [ ] `types.ts` — the `Annotation` schema (~25 fields). Also move
+- [x] `types.ts` — the `Annotation` schema (~25 fields). Also move
       `OutputDetailLevel` and `ReactComponentMode` here (upstream leaks them
       from the toolbar component; flagged in RESEARCH.md).
 - [ ] `utils/element-identification.ts` — element naming, DOM paths, shadow
