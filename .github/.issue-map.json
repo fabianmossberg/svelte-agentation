@@ -1,0 +1,226 @@
+{
+  "p0-01-scaffold-package": {
+    "number": 1,
+    "title": "Scaffold the SvelteKit library package and turn CI's guarded steps green"
+  },
+  "p0-02-mirror-lib-layout": {
+    "number": 2,
+    "title": "Lay out src/lib mirroring upstream package/src (types.ts, utils/, components/, index.ts)"
+  },
+  "p0-03-playground-route": {
+    "number": 3,
+    "title": "Playground route with a realistic demo page to annotate"
+  },
+  "p0-04-license-copyright-line": {
+    "number": 4,
+    "title": "Add the port's copyright line to LICENSE alongside upstream's notice"
+  },
+  "p0-99-gate": {
+    "number": 5,
+    "title": "Gate: Phase 0 \u2014 Scaffold done-when holds"
+  },
+  "p1-01-port-types": {
+    "number": 6,
+    "title": "Port types.ts, absorbing OutputDetailLevel and ReactComponentMode"
+  },
+  "p1-02-port-element-identification": {
+    "number": 7,
+    "title": "Port utils/element-identification.ts verbatim"
+  },
+  "p1-03-port-storage": {
+    "number": 8,
+    "title": "Port utils/storage.ts verbatim"
+  },
+  "p1-04-port-freeze-animations": {
+    "number": 9,
+    "title": "Port utils/freeze-animations.ts verbatim"
+  },
+  "p1-05-port-screenshot": {
+    "number": 10,
+    "title": "Port utils/screenshot.ts verbatim"
+  },
+  "p1-06-port-sync": {
+    "number": 11,
+    "title": "Port utils/sync.ts verbatim"
+  },
+  "p1-07-port-generate-output": {
+    "number": 12,
+    "title": "Port utils/generate-output.ts with enums imported from types.ts"
+  },
+  "p1-08-port-utils-barrel": {
+    "number": 13,
+    "title": "Port utils/index.ts barrel, dropping skipped re-exports"
+  },
+  "p1-09-compat-fixture-harness": {
+    "number": 14,
+    "title": "Compat fixture harness proving byte-identical markdown at all 4 detail levels"
+  },
+  "p1-99-gate": {
+    "number": 15,
+    "title": "Gate: Phase 1 \u2014 Portable core done-when holds"
+  },
+  "p2-01-annotations-controller": {
+    "number": 16,
+    "title": "Annotations controller \u2014 add/edit/delete/clear state machine with localStorage persistence"
+  },
+  "p2-02-picker-controller": {
+    "number": 17,
+    "title": "Picker controller \u2014 activate/deactivate, hover tracking, element hit-testing"
+  },
+  "p2-03-markers-controller": {
+    "number": 18,
+    "title": "Markers controller \u2014 visibility, enter/exit animation lifecycle, scroll and fixed-element handling"
+  },
+  "p2-04-port-icons": {
+    "number": 19,
+    "title": "Port components/icons.tsx (pure SVG) to Svelte"
+  },
+  "p2-05-port-primitives": {
+    "number": 20,
+    "title": "Port UI primitives \u2014 checkbox, switch, tooltip, help-tooltip"
+  },
+  "p2-06-annotation-popup": {
+    "number": 21,
+    "title": "Rewrite annotation-popup as a Svelte component (shake via exported function, not forwardRef)"
+  },
+  "p2-07-annotation-marker": {
+    "number": 22,
+    "title": "Rewrite annotation-marker components (AnnotationMarker, PendingMarker, ExitingMarker)"
+  },
+  "p2-08-settings-panel": {
+    "number": 23,
+    "title": "Rewrite settings panel (incl. checkbox-field) with ToolbarSettings persistence"
+  },
+  "p2-09-page-toolbar-component": {
+    "number": 24,
+    "title": "Page toolbar component \u2014 body mount, expand/collapse shell, dragging, layer composition"
+  },
+  "p2-10-toolbar-styles": {
+    "number": 25,
+    "title": "Toolbar style parity \u2014 convert the page-toolbar SCSS module preserving resets, variables, keyframes"
+  },
+  "p2-11-props-exports": {
+    "number": 26,
+    "title": "AgentationProps surface and index.ts export parity"
+  },
+  "p2-12-mvp-integration": {
+    "number": 27,
+    "title": "Wire the MVP loop \u2014 annotate \u2192 markdown \u2192 copy, keyboard shortcuts, pause animations, reload persistence"
+  },
+  "p2-99-gate": {
+    "number": 28,
+    "title": "Gate: Toolbar MVP done-when holds"
+  },
+  "p3-01-drag-multi-select": {
+    "number": 29,
+    "title": "Drag-rectangle multi-select creates a single multi-element annotation"
+  },
+  "p3-02-cmd-shift-click-multi-select": {
+    "number": 30,
+    "title": "Cmd+Shift+Click multi-select with per-element bounding boxes"
+  },
+  "p3-03-text-selection-annotations": {
+    "number": 31,
+    "title": "Text-selection annotations capture selectedText into popup and output"
+  },
+  "p3-04-draw-mode-canvas": {
+    "number": 32,
+    "title": "\"Draw mode: stroke canvas, mode lifecycle, and screenshot composition\""
+  },
+  "p3-05-draw-strokes-output": {
+    "number": 33,
+    "title": "Describe draw strokes in copied output (Drawings section + drawingIndex)"
+  },
+  "p3-06-output-detail-settings": {
+    "number": 34,
+    "title": "Output Detail setting (compact \u2192 forensic) wired through to generateOutput"
+  },
+  "p3-99-gate": {
+    "number": 35,
+    "title": "\"Gate: Phase 3 \u2014 Advanced annotations done-when holds\""
+  },
+  "p4-01-server-sync-props": {
+    "number": 36,
+    "title": "Add server-sync props and connection status to the toolbar"
+  },
+  "p4-02-session-create-resume": {
+    "number": 37,
+    "title": "Create or resume a server session and sync local annotations on connect"
+  },
+  "p4-03-push-annotation-crud": {
+    "number": 38,
+    "title": "Push annotation add/update/delete/clear to the server with ID reconciliation"
+  },
+  "p4-04-sse-agent-resolve": {
+    "number": 39,
+    "title": "Remove markers live when an agent resolves or dismisses annotations (SSE)"
+  },
+  "p4-05-send-to-agent-webhooks": {
+    "number": 40,
+    "title": "Implement webhook flow and Send-to-agent submit"
+  },
+  "p4-06-e2e-upstream-mcp": {
+    "number": 41,
+    "title": "Verify annotate \u2192 get_pending \u2192 resolve e2e against upstream's unmodified MCP server, documented in COMPAT.md"
+  },
+  "p4-99-gate": {
+    "number": 42,
+    "title": "Gate: Server sync + MCP done-when holds"
+  },
+  "p5-01-demo-mode-props": {
+    "number": 43,
+    "title": "Resolve demo-mode props \u2014 implement demoAnnotations/demoDelay/enableDemoMode or document as deferred"
+  },
+  "p5-02-prop-parity-audit": {
+    "number": 44,
+    "title": "Prop-by-prop parity audit of AgentationProps against upstream"
+  },
+  "p5-03-upstream-diff-review": {
+    "number": 45,
+    "title": "Review upstream changes since the pinned baseline and apply or re-pin"
+  },
+  "p5-04-package-readme": {
+    "number": 46,
+    "title": "Write the published-package README \u2014 install, usage, props, compatibility, attribution"
+  },
+  "p5-05-contact-benji-taylor": {
+    "number": 47,
+    "title": "Contact Benji Taylor with the built package and ask for his blessing"
+  },
+  "p5-06-notify-sikandarjodd": {
+    "number": 48,
+    "title": "Send a courtesy heads-up to SikandarJODD (sv-agentation)"
+  },
+  "p5-07-npm-publish": {
+    "number": 49,
+    "title": "Publish svelte-agentation to npm"
+  },
+  "p5-99-gate": {
+    "number": 50,
+    "title": "Gate: Parity audit + outreach + release done-when holds"
+  },
+  "p6-01-port-design-mode-logic": {
+    "number": 51,
+    "title": "Port design-mode logic modules (types, section-detection, spatial)"
+  },
+  "p6-02-design-mode-ui-overlays": {
+    "number": 52,
+    "title": "Rewrite the design-mode UI overlays in Svelte 5 (canvas, palette, rearrange, skeletons)"
+  },
+  "p6-03-design-output-integration": {
+    "number": 53,
+    "title": "Port design-mode output generator and emit placement/rearrange annotations"
+  },
+  "p6-99-gate": {
+    "number": 54,
+    "title": "Gate: Design mode done-when holds"
+  },
+  "p7-01-svelte-component-detection-spike": {
+    "number": 55,
+    "title": "Research Svelte equivalents for reactComponents/sourceFile detection"
+  },
+  "p7-99-gate": {
+    "number": 56,
+    "title": "Gate: Svelte component detection done-when holds"
+  }
+}
