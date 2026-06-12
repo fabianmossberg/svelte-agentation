@@ -22,6 +22,7 @@ upstream/
 # each new verbatim port here as it lands.
 src/lib/utils/element-identification.ts
 src/lib/utils/storage.ts
+src/lib/utils/freeze-animations.ts
 
 # Miscellaneous
 /static/
