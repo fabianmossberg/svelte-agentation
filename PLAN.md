@@ -44,7 +44,7 @@ names identical:
       from the toolbar component; flagged in RESEARCH.md).
 - [x] `utils/element-identification.ts` — element naming, DOM paths, shadow
       DOM traversal, nearby text/elements, computed styles, a11y info.
-- [ ] `utils/storage.ts` — localStorage persistence, sync markers, sessions.
+- [x] `utils/storage.ts` — localStorage persistence, sync markers, sessions.
 - [ ] `utils/freeze-animations.ts` — timer/RAF/CSS animation pause.
 - [ ] `utils/screenshot.ts` — DOM-to-canvas capture + drawing strokes.
 - [ ] `utils/sync.ts` — fetch client for the server protocol (sessions,
