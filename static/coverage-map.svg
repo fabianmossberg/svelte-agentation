@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 240" role="img"
+	aria-label="Stylized coverage map showing routed delivery lanes between hubs">
+	<rect width="480" height="240" fill="#0f172a" />
+	<g fill="none" stroke="#1e293b" stroke-width="1">
+		<path d="M0 60 H480 M0 120 H480 M0 180 H480" />
+		<path d="M120 0 V240 M240 0 V240 M360 0 V240" />
+	</g>
+	<g stroke="#38bdf8" stroke-width="2" fill="none" stroke-linecap="round">
+		<path d="M60 180 C 160 120, 200 80, 300 70" />
+		<path d="M60 180 C 140 200, 260 200, 420 90" />
+		<path d="M300 70 C 360 60, 400 90, 420 90" />
+	</g>
+	<g fill="#facc15">
+		<circle cx="60" cy="180" r="6" />
+		<circle cx="420" cy="90" r="6" />
+	</g>
+	<g fill="#38bdf8">
+		<circle cx="300" cy="70" r="5" />
+	</g>
+	<text x="60" y="208" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="12">Depot A</text>
+	<text x="372" y="118" fill="#94a3b8" font-family="system-ui, sans-serif" font-size="12">Depot B</text>
+</svg>
