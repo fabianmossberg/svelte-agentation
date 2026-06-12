@@ -1,0 +1,28 @@
+# Package Managers
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+bun.lock
+bun.lockb
+
+# Build output & generated
+dist/
+.svelte-kit/
+build/
+
+# Pinned upstream clone (see UPSTREAM.md / scripts/upstream.sh)
+upstream/
+
+# Miscellaneous
+/static/
+
+# Not prettier-managed: hand-curated docs, JSON data/config, and repo tooling
+# that predates the scaffold. Prettier manages the library source + JS/TS
+# config only; reformatting the docs/seeds here would be a large, out-of-scope
+# diff (and CLAUDE.md is deliberately hand-wrapped).
+*.md
+*.json
+.github/
+.claude/
+.vscode/
+scripts/

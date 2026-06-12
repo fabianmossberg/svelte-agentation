@@ -21,7 +21,7 @@ Strategy decisions already taken:
       of `benjitaylor/agentation` we port from (`8158a97`, v3.0.2; cloned
       locally via `./scripts/upstream.sh`). Every later phase references
       this snapshot.
-- [ ] Create a SvelteKit library package (pnpm, `@sveltejs/package`,
+- [x] Create a SvelteKit library package (pnpm, `@sveltejs/package`,
       `svelte@^5`, TypeScript, vitest + jsdom, publint). Package name:
       `svelte-agentation`.
 - [ ] `src/lib/` mirrors upstream `package/src/`:
