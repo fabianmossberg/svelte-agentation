@@ -45,7 +45,7 @@ names identical:
 - [x] `utils/element-identification.ts` — element naming, DOM paths, shadow
       DOM traversal, nearby text/elements, computed styles, a11y info.
 - [x] `utils/storage.ts` — localStorage persistence, sync markers, sessions.
-- [ ] `utils/freeze-animations.ts` — timer/RAF/CSS animation pause.
+- [x] `utils/freeze-animations.ts` — timer/RAF/CSS animation pause.
 - [ ] `utils/screenshot.ts` — DOM-to-canvas capture + drawing strokes.
 - [ ] `utils/sync.ts` — fetch client for the server protocol (sessions,
       annotations, actions).

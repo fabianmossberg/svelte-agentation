@@ -34,6 +34,22 @@ export default defineConfig(
 		}
 	},
 	{
+		// Verbatim upstream ports (PORTING.md mode `verbatim`) must stay
+		// byte-identical to upstream so releases apply as diffs (CLAUDE.md
+		// non-negotiable #3) — we cannot satisfy the TS quality rules their code
+		// legitimately trips. Relax exactly those rules for the affected port(s).
+		// `freeze-animations.ts` uses `any` casts on the timer monkey-patches and
+		// the `Function` type for handler shims; the SSR stub has an unused param.
+		// (element-identification.ts / storage.ts lint clean on their own, so they
+		// stay out of this list.) Add future verbatim ports here only if needed.
+		files: ['src/lib/utils/freeze-animations.ts'],
+		rules: {
+			'@typescript-eslint/no-explicit-any': 'off',
+			'@typescript-eslint/no-unsafe-function-type': 'off',
+			'@typescript-eslint/no-unused-vars': 'off'
+		}
+	},
+	{
 		// Override or add rule settings here, such as:
 		// 'svelte/button-has-type': 'error'
 		rules: {}

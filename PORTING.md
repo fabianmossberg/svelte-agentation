@@ -21,7 +21,7 @@ code change. Upstream paths are relative to `upstream/package/src/`; ours to
 | `types.ts` | `types.ts` | adapted | done (#6) | absorbed `OutputDetailLevel` + `ReactComponentMode` from `components/page-toolbar-css/index.tsx` (upstream leaks them; see RESEARCH.md) — each marked `// DIVERGENCE(upstream):` at the site |
 | `utils/element-identification.ts` | `utils/element-identification.ts` | verbatim | done (#7) | byte-identical (`diff` empty); excluded from Prettier in `.prettierignore` to preserve upstream's 2-space/double-quote style — ESLint still lints it. New jsdom unit tests added (upstream ships none). |
 | `utils/storage.ts` | `utils/storage.ts` | verbatim | done (#8) | byte-identical (`diff` empty); excluded from Prettier in `.prettierignore`. First verbatim port with an import — its extensionless `import type { Annotation } from "../types"` forced relaxing the scaffold's `NodeNext` moduleResolution to SvelteKit's default `bundler` in `tsconfig.json` (published artifact unchanged — type-only import is erased). New jsdom unit tests added (upstream ships none). |
-| `utils/freeze-animations.ts` | `utils/freeze-animations.ts` | verbatim | not started | — |
+| `utils/freeze-animations.ts` | `utils/freeze-animations.ts` | verbatim | done (#9) | byte-identical (`diff` empty); excluded from Prettier in `.prettierignore`. Zero imports; patches `setTimeout`/`setInterval`/`requestAnimationFrame` as an import side effect, state parked on `window.__agentation_freeze` to survive HMR (kept verbatim per issue #9 out-of-scope). Its `ReturnType<typeof setTimeout>` annotations clash with the `NodeJS.Timeout` overload that `@types/node` (pulled in by vitest) appends to the global `setTimeout`; accommodated **outside** the port by `src/ambient-dom-timers.d.ts`, which appends a trailing DOM `number` overload so `ReturnType` resolves to `number` (upstream's browser assumption) — see that file's header. New jsdom unit tests added (upstream ships none). |
 | `utils/screenshot.ts` | `utils/screenshot.ts` | verbatim | not started | — |
 | `utils/sync.ts` | `utils/sync.ts` | verbatim | not started | — |
 | `utils/generate-output.ts` | `utils/generate-output.ts` | adapted | not started | imports the two enums from `types.ts` instead of the toolbar component |
@@ -46,6 +46,7 @@ code change. Upstream paths are relative to `upstream/package/src/`; ours to
 | Upstream | Ours | Mode | Status | Divergences |
 |---|---|---|---|---|
 | (none upstream) | `utils/element-identification.test.ts` | n/a (new) | done (#7) | upstream ships no test for this module; new jsdom unit tests cover identify/path/shadow/nearby/classes/a11y |
+| (none upstream) | `utils/freeze-animations.test.ts` | n/a (new) | done (#9) | upstream ships no test; new jsdom unit tests cover timer/RAF queueing while frozen, `original*` bypass, unfreeze flush + style removal, and the three `data-*` exclusion attrs in the injected CSS |
 | `utils/react-detection.test.ts` | — | skipped | n/a | tests a skipped file |
 | `utils/source-location.test.ts` | — | skipped | n/a | tests a skipped file |
 | `components/page-toolbar-css/index.test.tsx` | rewritten per component | rewritten | not started | — |
