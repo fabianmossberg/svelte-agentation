@@ -1,0 +1,19 @@
+#!/usr/bin/env sh
+# Pre-commit gate: run the exact same lint CI runs (`prettier --check` +
+# `eslint`), so formatting/lint failures are caught here instead of after a
+# PR is opened and the CI "Lint" job fails. Mirrors CLAUDE.md's definition
+# of done.
+#
+# Installed for every contributor by the package's `prepare` script, which
+# points git at this directory via `git config core.hooksPath .githooks`.
+#
+# Bypass intentionally (e.g. a WIP commit) with: git commit --no-verify
+
+echo "▶ pre-commit: pnpm lint"
+if ! pnpm lint; then
+	echo
+	echo "✖ Lint failed — this is the same check CI runs."
+	echo "  Auto-fix formatting with:  pnpm format"
+	echo "  Then re-stage and commit. To bypass: git commit --no-verify"
+	exit 1
+fi

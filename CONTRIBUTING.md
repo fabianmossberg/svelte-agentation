@@ -74,6 +74,14 @@ protocol deviates from upstream, that bug outranks feature work.
   files may exceed this (they're reviewed against upstream instead — say so
   in the PR description and include the upstream path).
 
+## Pre-commit hook
+
+`pnpm install` points git at `.githooks/` (via the `prepare` script), so a
+`pre-commit` hook runs `pnpm lint` — the same `prettier --check` + `eslint`
+gate CI runs — before each commit. This catches formatting/lint failures
+locally instead of after a PR's CI run. Fix issues with `pnpm format`, or
+bypass intentionally with `git commit --no-verify`.
+
 ## Review etiquette (CodeRabbit and humans)
 
 Reply to **every** actionable inline comment inside that comment's thread —

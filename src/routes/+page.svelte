@@ -27,10 +27,34 @@
 	];
 
 	const shipments = [
-		{ id: 'MRD-4821', destination: 'Gothenburg, SE', carrier: 'NordFreight', status: 'In transit', eta: 'Jun 13' },
-		{ id: 'MRD-4822', destination: 'Hamburg, DE', carrier: 'EuroLine', status: 'Out for delivery', eta: 'Jun 12' },
-		{ id: 'MRD-4823', destination: 'Rotterdam, NL', carrier: 'NordFreight', status: 'Delayed', eta: 'Jun 14' },
-		{ id: 'MRD-4824', destination: 'Oslo, NO', carrier: 'FjordCargo', status: 'Delivered', eta: 'Jun 11' }
+		{
+			id: 'MRD-4821',
+			destination: 'Gothenburg, SE',
+			carrier: 'NordFreight',
+			status: 'In transit',
+			eta: 'Jun 13'
+		},
+		{
+			id: 'MRD-4822',
+			destination: 'Hamburg, DE',
+			carrier: 'EuroLine',
+			status: 'Out for delivery',
+			eta: 'Jun 12'
+		},
+		{
+			id: 'MRD-4823',
+			destination: 'Rotterdam, NL',
+			carrier: 'NordFreight',
+			status: 'Delayed',
+			eta: 'Jun 14'
+		},
+		{
+			id: 'MRD-4824',
+			destination: 'Oslo, NO',
+			carrier: 'FjordCargo',
+			status: 'Delivered',
+			eta: 'Jun 11'
+		}
 	];
 
 	let demoRequested = $state(false);
@@ -171,7 +195,11 @@
 <style>
 	:global(body) {
 		margin: 0;
-		font-family: system-ui, -apple-system, 'Segoe UI', sans-serif;
+		font-family:
+			system-ui,
+			-apple-system,
+			'Segoe UI',
+			sans-serif;
 		color: #0f172a;
 		background: #f8fafc;
 		line-height: 1.5;
