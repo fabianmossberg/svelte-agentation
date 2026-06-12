@@ -2,7 +2,7 @@
 	"name": "svelte-agentation",
 	"version": "0.0.1",
 	"license": "PolyForm-Shield-1.0.0",
-	"packageManager": "pnpm@11.5.2",
+	"packageManager": "pnpm@10.34.3",
 	"engines": {
 		"node": ">=22"
 	},
