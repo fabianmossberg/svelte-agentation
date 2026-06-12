@@ -24,6 +24,7 @@ src/lib/utils/element-identification.ts
 src/lib/utils/storage.ts
 src/lib/utils/freeze-animations.ts
 src/lib/utils/screenshot.ts
+src/lib/utils/sync.ts
 
 # Miscellaneous
 /static/
