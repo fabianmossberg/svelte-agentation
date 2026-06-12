@@ -20,7 +20,7 @@ code change. Upstream paths are relative to `upstream/package/src/`; ours to
 |---|---|---|---|---|
 | `types.ts` | `types.ts` | adapted | done (#6) | absorbed `OutputDetailLevel` + `ReactComponentMode` from `components/page-toolbar-css/index.tsx` (upstream leaks them; see RESEARCH.md) — each marked `// DIVERGENCE(upstream):` at the site |
 | `utils/element-identification.ts` | `utils/element-identification.ts` | verbatim | done (#7) | byte-identical (`diff` empty); excluded from Prettier in `.prettierignore` to preserve upstream's 2-space/double-quote style — ESLint still lints it. New jsdom unit tests added (upstream ships none). |
-| `utils/storage.ts` | `utils/storage.ts` | verbatim | not started | — |
+| `utils/storage.ts` | `utils/storage.ts` | verbatim | done (#8) | byte-identical (`diff` empty); excluded from Prettier in `.prettierignore`. First verbatim port with an import — its extensionless `import type { Annotation } from "../types"` forced relaxing the scaffold's `NodeNext` moduleResolution to SvelteKit's default `bundler` in `tsconfig.json` (published artifact unchanged — type-only import is erased). New jsdom unit tests added (upstream ships none). |
 | `utils/freeze-animations.ts` | `utils/freeze-animations.ts` | verbatim | not started | — |
 | `utils/screenshot.ts` | `utils/screenshot.ts` | verbatim | not started | — |
 | `utils/sync.ts` | `utils/sync.ts` | verbatim | not started | — |

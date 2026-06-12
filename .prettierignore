@@ -21,6 +21,7 @@ upstream/
 # lints them (eslint-config-prettier disables only the stylistic rules). Add
 # each new verbatim port here as it lands.
 src/lib/utils/element-identification.ts
+src/lib/utils/storage.ts
 
 # Miscellaneous
 /static/
