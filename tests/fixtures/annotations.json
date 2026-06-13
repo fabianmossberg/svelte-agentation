@@ -1,0 +1,80 @@
+[
+	{
+		"name": "empty",
+		"pathname": "/empty",
+		"annotations": []
+	},
+	{
+		"name": "minimal",
+		"pathname": "/minimal",
+		"annotations": [
+			{
+				"id": "m1",
+				"x": 50,
+				"y": 100,
+				"comment": "Looks off",
+				"element": "div.container",
+				"elementPath": "body > div.container",
+				"timestamp": 0
+			}
+		]
+	},
+	{
+		"name": "maximal",
+		"pathname": "/dashboard/settings",
+		"annotations": [
+			{
+				"id": "x1",
+				"x": 12.345,
+				"y": 678.9,
+				"comment": "Primary CTA is misaligned",
+				"element": "Button",
+				"elementPath": "body > main > button.btn",
+				"timestamp": 0,
+				"selectedText": "Click me",
+				"boundingBox": { "x": 10.4, "y": 20.6, "width": 100.5, "height": 40.2 },
+				"nearbyText": "Surrounding context that must be suppressed when selectedText is present",
+				"cssClasses": "btn btn-primary",
+				"nearbyElements": "<span>, <svg>",
+				"computedStyles": "color: rgb(255, 0, 0); display: flex",
+				"fullPath": "html > body > main > button.btn",
+				"accessibility": "role=button, aria-label=Submit",
+				"isMultiSelect": true,
+				"reactComponents": "<App> <Dashboard> <Button>",
+				"sourceFile": "src/Button.tsx:42"
+			},
+			{
+				"id": "x2",
+				"x": 0,
+				"y": 0,
+				"comment": "Selected text over the 30-char compact cutoff",
+				"element": "p",
+				"elementPath": "body > p",
+				"timestamp": 0,
+				"selectedText": "This selected text is definitely longer than thirty characters"
+			},
+			{
+				"id": "x3",
+				"x": 99.999,
+				"y": 1234.5,
+				"comment": "Context shown because there is no selectedText",
+				"element": "section",
+				"elementPath": "body > section#intro",
+				"timestamp": 0,
+				"nearbyText": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+			},
+			{
+				"id": "x4",
+				"x": 25.5,
+				"y": 50,
+				"comment": "isMultiSelect without fullPath omits the first-element note",
+				"element": "a",
+				"elementPath": "body > nav > a",
+				"timestamp": 0,
+				"isMultiSelect": true,
+				"cssClasses": "nav-link",
+				"boundingBox": { "x": 5.5, "y": 6.6, "width": 7.7, "height": 8.8 }
+			}
+		]
+	}
+]
