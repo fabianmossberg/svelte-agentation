@@ -49,7 +49,7 @@ names identical:
 - [x] `utils/screenshot.ts` — DOM-to-canvas capture + drawing strokes.
 - [x] `utils/sync.ts` — fetch client for the server protocol (sessions,
       annotations, actions).
-- [ ] `utils/generate-output.ts` — markdown generator, 4 detail levels
+- [x] `utils/generate-output.ts` — markdown generator, 4 detail levels
       (compact / standard / detailed / forensic). React-specific fields
       (`reactComponents`, `sourceFile`) remain in output logic but stay
       empty/undefined for now.

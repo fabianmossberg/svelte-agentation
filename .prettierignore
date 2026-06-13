@@ -25,6 +25,10 @@ src/lib/utils/storage.ts
 src/lib/utils/freeze-animations.ts
 src/lib/utils/screenshot.ts
 src/lib/utils/sync.ts
+# `generate-output.ts` is mode `adapted` (only its import block diverges), but
+# its body must stay byte-identical to upstream — `diff` of everything past the
+# imports is required to be empty (issue #12) — so it is Prettier-excluded too.
+src/lib/utils/generate-output.ts
 
 # Miscellaneous
 /static/
