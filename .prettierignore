@@ -29,6 +29,11 @@ src/lib/utils/sync.ts
 # its body must stay byte-identical to upstream — `diff` of everything past the
 # imports is required to be empty (issue #12) — so it is Prettier-excluded too.
 src/lib/utils/generate-output.ts
+# `index.ts` is mode `adapted` (drops only the `source-location` re-export): it
+# must stay byte-identical to upstream's barrel except that one line so upstream
+# changes to the barrel apply as a clean diff (issue #13) — so it is
+# Prettier-excluded to preserve upstream's double-quote/extensionless style.
+src/lib/utils/index.ts
 
 # Miscellaneous
 /static/
