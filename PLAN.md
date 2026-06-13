@@ -55,9 +55,9 @@ names identical:
       empty/undefined for now.
 - [ ] Port upstream's existing tests (`source-location.test.ts` excluded —
       React-only; not ported).
-- [ ] **Compatibility fixture test:** feed identical `Annotation[]` fixtures
+- [x] **Compatibility fixture test:** feed identical `Annotation[]` fixtures
       to our `generateOutput` and upstream's; assert byte-identical markdown
-      at all 4 detail levels.
+      at all 4 detail levels. (#14)
 
 **Explicitly NOT ported:** `utils/react-detection.ts`,
 `utils/source-location.ts` (React-fiber-bound; their schema fields are
