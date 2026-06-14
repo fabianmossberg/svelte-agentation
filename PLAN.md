@@ -88,7 +88,7 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
         `forwardRef`/`useImperativeHandle` `.shake()` with an exported
         function / bindable). (#21)
   - [x] `components/page-toolbar/annotation-marker/`. (#22)
-  - [ ] `components/page-toolbar/settings-panel/` incl. checkbox-field.
+  - [x] `components/page-toolbar/settings-panel/` incl. checkbox-field. (#23)
   - [x] Primitives: `checkbox`, `switch`, `tooltip`, `help-tooltip`,
         `icons` (pure SVG — near-verbatim). `icons` ✓ done (#19);
         `checkbox`, `switch`, `tooltip`, `help-tooltip` ✓ done (#20).
