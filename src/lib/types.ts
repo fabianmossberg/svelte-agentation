@@ -2,6 +2,15 @@
 // Shared Types
 // =============================================================================
 
+// DIVERGENCE(upstream): whole-file formatting. Unlike the diff-clean adapted
+// ports (generate-output.ts, utils/index.ts, which are Prettier-excluded to
+// stay byte-identical), types.ts is Prettier-managed and reformatted to this
+// repo's style (tabs, single quotes). The type *shapes* are upstream's verbatim
+// — schema compat is unaffected (compat fixtures stay byte-identical) — but the
+// source is not byte-identical, so upstream type changes are re-applied by hand
+// rather than as a clean diff. Accepted for this more-heavily-adapted file (it
+// also absorbs the two output enums below); see PORTING.md and issue #15.
+
 export type Annotation = {
 	id: string;
 	x: number; // % of viewport width
