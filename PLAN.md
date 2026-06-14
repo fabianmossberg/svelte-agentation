@@ -53,8 +53,12 @@ names identical:
       (compact / standard / detailed / forensic). React-specific fields
       (`reactComponents`, `sourceFile`) remain in output logic but stay
       empty/undefined for now.
-- [ ] Port upstream's existing tests (`source-location.test.ts` excluded —
-      React-only; not ported).
+- [x] Port upstream's existing tests (`source-location.test.ts` excluded —
+      React-only; not ported). Satisfied by the skip records: upstream's only
+      util tests are `react-detection.test.ts` (363 LOC) and
+      `source-location.test.ts` (1211 LOC), both covering skipped React-fiber
+      files (PORTING.md › Tests). Every portable module instead got new
+      per-module unit tests (upstream ships none). Verified by #15.
 - [x] **Compatibility fixture test:** feed identical `Annotation[]` fixtures
       to our `generateOutput` and upstream's; assert byte-identical markdown
       at all 4 detail levels. (#14)
