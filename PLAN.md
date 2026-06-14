@@ -75,8 +75,8 @@ Rewrite upstream's `page-toolbar-css/index.tsx` (4.7k-line React monolith)
 as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
 (`.svelte.ts`) grouped the way the monolith groups state:
 
-- [ ] `internal/annotations.svelte.ts` — annotation list state machine
-      (add → edit → delete → clear), persistence via `utils/storage`.
+- [x] `internal/annotations.svelte.ts` — annotation list state machine
+      (add → edit → delete → clear), persistence via `utils/storage`. (#16)
 - [ ] `internal/picker.svelte.ts` — activate/deactivate, hover tracking,
       element hit-testing (via `utils/element-identification`).
 - [ ] `internal/markers.svelte.ts` — marker positions, enter/exit animation
