@@ -58,5 +58,15 @@ export default defineConfig({
 		// fixture tests inherit that requirement. See CLAUDE.md "Tech conventions".
 		environment: 'jsdom',
 		include: ['src/**/*.{test,spec}.{js,ts}', 'tests/**/*.{test,spec}.{js,ts}']
-	}
+	},
+	// Tell Vitest to use the `browser` entry points in `package.json` exports
+	// even though it runs in Node — without this, `import { mount } from 'svelte'`
+	// resolves to Svelte's server build (`index-server.js`), where `mount()` throws
+	// `lifecycle_function_unavailable`. Required to render `.svelte` components
+	// (the icon smoke tests, issue #19) under jsdom. Gated on VITEST so the dev
+	// server / `svelte-package` build keep their normal SSR-capable resolution.
+	// See https://svelte.dev/docs/svelte/testing#Component-testing. The node-env
+	// tests (generate-output.node, compat) import no `.svelte`/browser-only deps,
+	// so the browser condition is a no-op for them.
+	resolve: process.env.VITEST ? { conditions: ['browser'] } : undefined
 });
