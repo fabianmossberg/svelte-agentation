@@ -84,9 +84,9 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
 - [ ] Components (each mirrors an upstream component dir):
   - [ ] `components/page-toolbar/` — the toolbar itself, mounted to
         `document.body` (Svelte `mount()` replaces React portal).
-  - [ ] `components/annotation-popup/` — comment popup (replace upstream's
+  - [x] `components/annotation-popup/` — comment popup (replace upstream's
         `forwardRef`/`useImperativeHandle` `.shake()` with an exported
-        function / bindable).
+        function / bindable). (#21)
   - [ ] `components/page-toolbar/annotation-marker/`.
   - [ ] `components/page-toolbar/settings-panel/` incl. checkbox-field.
   - [x] Primitives: `checkbox`, `switch`, `tooltip`, `help-tooltip`,
