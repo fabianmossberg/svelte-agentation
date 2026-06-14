@@ -1,9 +1,21 @@
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-auto';
 import { sveltekit } from '@sveltejs/kit/vite';
 
+// Read the package version once at config load and inject it as `__VERSION__`,
+// mirroring upstream's tsup `define`. Consumed (guarded) by
+// `src/lib/internal/version.ts` — see that file for why svelte-package can't
+// rely on this replacement and how the packaged build degrades safely.
+const pkg = JSON.parse(
+	readFileSync(fileURLToPath(new URL('./package.json', import.meta.url)), 'utf-8')
+);
+
 export default defineConfig({
+	define: {
+		__VERSION__: JSON.stringify(pkg.version)
+	},
 	plugins: [
 		// `modern-screenshot` is an optional, uninstalled dependency that
 		// `src/lib/utils/screenshot.ts` reaches via a guarded dynamic
