@@ -77,8 +77,8 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
 
 - [x] `internal/annotations.svelte.ts` — annotation list state machine
       (add → edit → delete → clear), persistence via `utils/storage`. (#16)
-- [ ] `internal/picker.svelte.ts` — activate/deactivate, hover tracking,
-      element hit-testing (via `utils/element-identification`).
+- [x] `internal/picker.svelte.ts` — activate/deactivate, hover tracking,
+      element hit-testing (via `utils/element-identification`). (#17)
 - [ ] `internal/markers.svelte.ts` — marker positions, enter/exit animation
       lifecycle, scroll/resize re-positioning, fixed-element handling.
 - [ ] Components (each mirrors an upstream component dir):
