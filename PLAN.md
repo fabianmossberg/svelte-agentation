@@ -89,9 +89,9 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
         function / bindable).
   - [ ] `components/page-toolbar/annotation-marker/`.
   - [ ] `components/page-toolbar/settings-panel/` incl. checkbox-field.
-  - [ ] Primitives: `checkbox`, `switch`, `tooltip`, `help-tooltip`,
-        `icons` (pure SVG — near-verbatim). `icons` ✓ done (#19); remaining:
-        `checkbox`, `switch`, `tooltip`, `help-tooltip`.
+  - [x] Primitives: `checkbox`, `switch`, `tooltip`, `help-tooltip`,
+        `icons` (pure SVG — near-verbatim). `icons` ✓ done (#19);
+        `checkbox`, `switch`, `tooltip`, `help-tooltip` ✓ done (#20).
 - [ ] Styles: convert upstream SCSS modules to component `<style>` blocks,
       preserving the `:where()` zero-specificity resets, CSS variables, and
       keyframe animations. Keep `data-feedback-toolbar` attributes (the
