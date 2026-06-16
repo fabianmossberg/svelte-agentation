@@ -101,12 +101,14 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
 - [ ] Wire MVP features: pick element → comment → marker → edit/delete →
       clear all → generate markdown → copy to clipboard; keyboard shortcuts;
       `pauseAnimations`; localStorage persistence across reloads.
-- [ ] Props: implement upstream's `AgentationProps` surface —
+- [x] Props: implement upstream's `AgentationProps` surface —
       `copyToClipboard`, `className`, callbacks `onAnnotationAdd`,
       `onAnnotationUpdate`, `onAnnotationDelete`, `onAnnotationsClear`,
-      `onCopy`, `onSubmit`. Same names, same call signatures.
-- [ ] Export `Agentation` (+ `AnnotationPopup`, utils, storage, types) from
-      `index.ts` matching upstream's export list.
+      `onCopy`, `onSubmit`. Same names, same call signatures. (#26 — the
+      Phase-2 subset wired; `onSubmit`/`endpoint`/`sessionId`/`webhookUrl`/
+      `demo*` declared and inert until Phases 4/5.)
+- [x] Export `Agentation` (+ `AnnotationPopup`, utils, storage, types) from
+      `index.ts` matching upstream's export list. (#26)
 
 **Done when:** in the playground, the full annotate → output → copy loop
 matches upstream behavior side-by-side, with annotations surviving reload.

@@ -2,7 +2,10 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { defineStatusBadge } from './status-badge.js';
-	import PageToolbar from '$lib/components/page-toolbar/index.svelte';
+	// Import through the package's public entry (`$lib` → `src/lib/index.ts`) under
+	// the upstream name, exercising the published surface exactly as a consumer of
+	// `svelte-agentation` would (issue #26 — the "fresh consumer snippet" check).
+	import { Agentation } from '$lib';
 
 	// Placeholder destination for the demo's nav/footer links. The playground
 	// is a single route, so every link points home; resolve() satisfies
@@ -196,7 +199,7 @@
 
 <!-- The Agentation toolbar. It mounts its own UI into document.body, so its
 position in this markup is irrelevant — placed last by convention. -->
-<PageToolbar />
+<Agentation />
 
 <style>
 	:global(body) {
