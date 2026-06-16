@@ -82,8 +82,8 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
 - [x] `internal/markers.svelte.ts` — marker positions, enter/exit animation
       lifecycle, scroll/resize re-positioning, fixed-element handling. (#18)
 - [ ] Components (each mirrors an upstream component dir):
-  - [ ] `components/page-toolbar/` — the toolbar itself, mounted to
-        `document.body` (Svelte `mount()` replaces React portal).
+  - [x] `components/page-toolbar/` — the toolbar itself, mounted to
+        `document.body` (Svelte `mount()` replaces React portal). (#24)
   - [x] `components/annotation-popup/` — comment popup (replace upstream's
         `forwardRef`/`useImperativeHandle` `.shake()` with an exported
         function / bindable). (#21)

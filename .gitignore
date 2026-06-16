@@ -32,3 +32,6 @@ Thumbs.db
 # editors
 .idea/
 *.swp
+
+# Playwright MCP screenshot/snapshot artifacts
+.playwright-mcp/

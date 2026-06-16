@@ -94,6 +94,14 @@ export type PickerControllerOptions = {
 	 * {@link isPending} (upstream click handler L2003). Defaults to always-false.
 	 */
 	isEditing?: () => boolean;
+	/**
+	 * Fired when a click in feedback mode is declined because a popup is already
+	 * open (pending or editing) and the click landed outside it. Mirrors upstream,
+	 * which shakes the open popup in that case (index.tsx L1995–2009) via the
+	 * popup's imperative handle. The toolbar wires this to `popup.shake()` (p2-09).
+	 * The picker itself stays popup-agnostic — it only signals the block.
+	 */
+	onBlocked?: () => void;
 };
 
 /**
@@ -184,6 +192,7 @@ export class PickerController {
 	#options: PickerControllerOptions;
 	#isPending: () => boolean;
 	#isEditing: () => boolean;
+	#onBlocked: () => void;
 
 	/** Whether feedback mode is active. Read-only to callers; toggle via the methods. */
 	#active = $state(false);
@@ -200,6 +209,7 @@ export class PickerController {
 		this.#options = options;
 		this.#isPending = options.isPending ?? (() => false);
 		this.#isEditing = options.isEditing ?? (() => false);
+		this.#onBlocked = options.onBlocked ?? (() => {});
 	}
 
 	/** Whether feedback mode is active (read-only view). */
@@ -316,10 +326,17 @@ export class PickerController {
 		// DIVERGENCE(upstream): the `settings.blockInteractions` interactive-element
 		// branch (L1982–1993) — settings controller, later issue.
 
-		// DIVERGENCE(upstream): when a popup is open, upstream shakes it
-		// (L1995–2009) via the popup's imperative handle; that component does not
-		// exist yet, so we simply decline to create a second pending annotation.
-		if (this.#isPending() || this.#isEditing()) return;
+		// When a popup is open, upstream shakes it (L1995–2009) via the popup's
+		// imperative handle. The picker stays popup-agnostic: it fires `onBlocked`
+		// so the toolbar (which owns the popup refs) can call `popup.shake()`, and
+		// declines to create a second pending annotation. The earlier
+		// `[data-annotation-popup]` guard already lets clicks *inside* the popup
+		// through, so `onBlocked` only fires for clicks outside it — matching
+		// upstream's shake-on-outside-click semantics.
+		if (this.#isPending() || this.#isEditing()) {
+			this.#onBlocked();
+			return;
+		}
 
 		e.preventDefault();
 

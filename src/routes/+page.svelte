@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { resolve } from '$app/paths';
 	import { defineStatusBadge } from './status-badge.js';
+	import PageToolbar from '$lib/components/page-toolbar/index.svelte';
 
 	// Placeholder destination for the demo's nav/footer links. The playground
 	// is a single route, so every link points home; resolve() satisfies
@@ -10,8 +11,9 @@
 
 	// The playground is the standing manual test bed for every later phase
 	// (element picking, multi-select, text selection, animation freezing,
-	// shadow-DOM traversal). The Agentation toolbar is intentionally NOT
-	// mounted here yet — Phase 2 adds it. See issue #3 and PLAN.md Phase 0.
+	// shadow-DOM traversal). The Agentation toolbar is mounted at the bottom of
+	// this file (Phase 2, issue #24) — it portals itself into document.body, so
+	// it can sit anywhere in the route. See issue #3 and PLAN.md Phase 2.
 
 	// Register the shadow-DOM custom element on the client only.
 	onMount(defineStatusBadge);
@@ -191,6 +193,10 @@
 	</nav>
 	<p>© 2026 Meridian Logistics. Demo page for the svelte-agentation playground.</p>
 </footer>
+
+<!-- The Agentation toolbar. It mounts its own UI into document.body, so its
+position in this markup is irrelevant — placed last by convention. -->
+<PageToolbar />
 
 <style>
 	:global(body) {
