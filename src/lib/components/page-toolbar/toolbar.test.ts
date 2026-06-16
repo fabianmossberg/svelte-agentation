@@ -123,6 +123,31 @@ describe('PageToolbar — annotation count badge', () => {
 	});
 });
 
+describe('PageToolbar — freeze-animations exclusion contract', () => {
+	it('keeps data-feedback-toolbar on every toolbar-owned layer (shell + marker layers + overlay)', () => {
+		renderToolbar();
+
+		// The always-present layers: the shell and both marker layers. The
+		// freeze-animations util (utils/freeze-animations.ts) excludes anything under
+		// `[data-feedback-toolbar]` from being paused, so a styling refactor must keep
+		// the attribute on each toolbar-owned container (upstream contract, see #25).
+		for (const selector of ['.toolbar', '.markersLayer', '.fixedMarkersLayer']) {
+			const el = document.body.querySelector(selector);
+			expect(el, selector).not.toBeNull();
+			expect(el!.hasAttribute('data-feedback-toolbar'), selector).toBe(true);
+		}
+
+		// The overlay only mounts while feedback mode is active.
+		document.body
+			.querySelector('.toolbarContainer')!
+			.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+		flushSync();
+		const overlay = document.body.querySelector('.overlay');
+		expect(overlay).not.toBeNull();
+		expect(overlay!.hasAttribute('data-feedback-toolbar')).toBe(true);
+	});
+});
+
 describe('PageToolbar — event-propagation blocker', () => {
 	it('stops events inside the toolbar from reaching document-level listeners', () => {
 		renderToolbar();
