@@ -92,10 +92,12 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
   - [x] Primitives: `checkbox`, `switch`, `tooltip`, `help-tooltip`,
         `icons` (pure SVG — near-verbatim). `icons` ✓ done (#19);
         `checkbox`, `switch`, `tooltip`, `help-tooltip` ✓ done (#20).
-- [ ] Styles: convert upstream SCSS modules to component `<style>` blocks,
+- [x] Styles: convert upstream SCSS modules to component `<style>` blocks,
       preserving the `:where()` zero-specificity resets, CSS variables, and
       keyframe animations. Keep `data-feedback-toolbar` attributes (the
-      freeze-animations exclusion contract depends on them).
+      freeze-animations exclusion contract depends on them). (#25 — toolbar
+      shell parity; settings/popup/marker styles landed with their components
+      in #21/#22/#23.)
 - [ ] Wire MVP features: pick element → comment → marker → edit/delete →
       clear all → generate markdown → copy to clipboard; keyboard shortcuts;
       `pauseAnimations`; localStorage persistence across reloads.

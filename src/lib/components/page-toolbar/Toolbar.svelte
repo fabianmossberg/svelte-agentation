@@ -1,3 +1,10 @@
+<script module lang="ts">
+	// Plays the entrance animation only on the first toolbar mount of the page
+	// load — not on SPA navigation / remounts (upstream module-scoped flag,
+	// index.tsx L688–690). Module scope (not instance) so it survives remounts.
+	let hasPlayedEntranceAnimation = false;
+</script>
+
 <script lang="ts">
 	// =============================================================================
 	// Toolbar — the page-toolbar UI shell (mounted into document.body via index.svelte)
@@ -28,17 +35,20 @@
 	//     exists. Send (webhook) and the keyboard handler are omitted (Phase 4 / p2-12).
 	//   - design / layout / draw mode, multi-select overlays, server & demo paths
 	//     (Phases 3 / 4 / 6): omitted.
-	//   - full SCSS pixel parity, entrance/hide animations, light-mode overrides,
-	//     the theme-toggle transition-disable flash guard (p2-10): only the operable
-	//     subset of styles is carried.
 	//   - the public prop surface + `index.ts` exports (p2-11).
+	//
+	// STYLE PARITY (issue #25, p2-10): the shell now carries full upstream parity —
+	// the entrance + hide animations, the badge entrance, the light-mode override
+	// cascade, and the theme-toggle transition-disable flash guard are all wired
+	// here. Phase 3/4/6-only rules (server/MCP indicators, send button, draw canvas,
+	// drag-selection, extra button states) ship with their features, not here.
 	import { onMount } from 'svelte';
 	import type { Annotation } from '../../types';
 	import { AnnotationsController } from '../../internal/annotations.svelte';
 	import { MarkersController } from '../../internal/markers.svelte';
 	import { PickerController } from '../../internal/picker.svelte';
 	import { SettingsController } from '../../internal/settings.svelte';
-	import { originalSetTimeout } from '../../utils/freeze-animations';
+	import { originalSetTimeout, originalRequestAnimationFrame } from '../../utils/freeze-animations';
 	import { parseComputedStylesString } from '../../utils/element-identification';
 	import { loadToolbarHidden, saveToolbarHidden } from '../../utils/storage';
 	import {
@@ -110,6 +120,8 @@
 	let tooltipSessionActive = $state(false); // L500
 	let tooltipSessionTimer: ReturnType<typeof originalSetTimeout> | null = null; // L501
 	let isToolbarHidden = $state(loadToolbarHidden()); // L345
+	let isToolbarHiding = $state(false); // L346 — plays the hide animation before unmount
+	let showEntranceAnimation = $state(false); // L566 — first-load entrance animation
 	// DIVERGENCE(upstream): freeze + copy end-to-end are p2-12; these are minimal
 	// render-only flags so the pause/copy buttons reflect a state but do no work yet.
 	let isFrozen = $state(false); // L429
@@ -245,6 +257,15 @@
 	onMount(() => {
 		settings.load();
 		markers.start();
+
+		// Trigger the entrance animation only on the first load of the page, not on
+		// SPA navigation / remounts (upstream L687–693). The toolbar plays for 500ms,
+		// the badge for 400ms delay + 300ms — the class is removed after 750ms.
+		if (!hasPlayedEntranceAnimation) {
+			showEntranceAnimation = true;
+			hasPlayedEntranceAnimation = true;
+			originalSetTimeout(() => (showEntranceAnimation = false), 750);
+		}
 
 		// Restore saved toolbar position (upstream L706–717).
 		try {
@@ -403,6 +424,37 @@
 		showSettings = false;
 	}
 
+	// Theme toggle with the flash guard (upstream `toggleTheme`, L568–573): adding
+	// `disableTransitions` to the portal wrapper for one frame suppresses the
+	// color/box-shadow transitions that would otherwise animate during the switch,
+	// then removes it on the next animation frame. DIVERGENCE(upstream): applied
+	// imperatively via `classList` (matching upstream) with the class name kept
+	// global (`:global(.disableTransitions …)` in the stylesheet) rather than a
+	// scoped reactive `class:` — the rule targets every descendant via `*`, which
+	// scoped styles can't express cleanly.
+	function handleToggleTheme() {
+		portalWrapper?.classList.add('disableTransitions');
+		settings.toggleTheme();
+		originalRequestAnimationFrame(() => {
+			portalWrapper?.classList.remove('disableTransitions');
+		});
+	}
+
+	// Hide the toolbar with the exit animation (upstream `hideToolbarTemporarily`,
+	// L1131–1141): collapse + close settings, play `toolbarHide` for 400ms, then
+	// persist hidden and unmount the shell.
+	function hideToolbarTemporarily() {
+		if (isToolbarHiding) return;
+		isToolbarHiding = true;
+		showSettings = false;
+		picker.deactivate();
+		originalSetTimeout(() => {
+			saveToolbarHidden(true);
+			isToolbarHidden = true;
+			isToolbarHiding = false;
+		}, 400);
+	}
+
 	// Marker interaction wiring (upstream L4204–4215).
 	function onMarkerClick(a: Annotation) {
 		if (settings.settings.markerClickBehavior === 'delete') markers.startDelete(a.id);
@@ -446,6 +498,8 @@ and `-root` is what the picker's cursor injection excludes. -->
 				class="toolbarContainer"
 				class:expanded={isActive}
 				class:collapsed={!isActive}
+				class:entrance={showEntranceAnimation}
+				class:hiding={isToolbarHiding}
 				onclick={handleContainerClick}
 				onmousedown={handleToolbarMouseDown}
 				role={!isActive ? 'button' : undefined}
@@ -456,7 +510,9 @@ and `-root` is what the picker's cursor injection excludes. -->
 				<div class="toggleContent" class:visible={!isActive} class:hidden={isActive}>
 					<IconListSparkle size={24} />
 					{#if hasVisibleAnnotations}
-						<span class="badge" class:fadeOut={isActive}>{visibleAnnotations.length}</span>
+						<span class="badge" class:fadeOut={isActive} class:entrance={showEntranceAnimation}
+							>{visibleAnnotations.length}</span
+						>
 					{/if}
 				</div>
 
@@ -595,7 +651,7 @@ and `-root` is what the picker's cursor injection excludes. -->
 					settings={settings.settings}
 					onSettingsChange={(patch) => settings.patch(patch)}
 					isDarkMode={settings.isDarkMode}
-					onToggleTheme={() => settings.toggleTheme()}
+					onToggleTheme={handleToggleTheme}
 					{isDevMode}
 					{connectionStatus}
 					endpoint={undefined}
@@ -603,10 +659,7 @@ and `-root` is what the picker's cursor injection excludes. -->
 					toolbarNearBottom={toolbarPosition !== null && toolbarPosition.y < 230}
 					{settingsPage}
 					onSettingsPageChange={(page) => (settingsPage = page)}
-					onHideToolbar={() => {
-						isToolbarHidden = true;
-						saveToolbarHidden(true);
-					}}
+					onHideToolbar={hideToolbarTemporarily}
 				/>
 			</div>
 		</div>
@@ -833,14 +886,23 @@ and `-root` is what the picker's cursor injection excludes. -->
 	</div>
 {/if}
 
-<!-- DIVERGENCE(upstream): `styles.module.scss` (2.2k LOC) → scoped `<style>`. Only
-the operable subset is carried (p2-10 completes pixel parity): the host-CSS-leak
-guards (`:where()` reset + the `svg[fill="none"]` protection), the shell morph,
-control buttons + CSS tooltips, marker layers, and the overlay outlines/tooltip.
-Class names are kept verbatim; SCSS `&` nesting is flattened to plain CSS (no
-preprocessor in this repo) and the per-component Svelte hash replaces the CSS-module
-hash. Dropped for p2-10: entrance/hide animations, server/connection indicators,
-send-button, draw/layout styles, and the full light-mode override cascade. -->
+<!-- DIVERGENCE(upstream): `styles.module.scss` (2.2k LOC) → scoped `<style>`. This
+carries the toolbar shell's full upstream parity (issue #25, p2-10): the host-CSS-leak
+guards (`:where()` reset + the `svg[fill="none"]` protection), the `:where(.toolbar)`
+zero-specificity positional defaults, the shell morph + entrance/hide animations,
+control buttons + CSS tooltips (incl. corner-aligned + tooltip-below variants), the
+badge + its entrance, marker layers, the overlay outlines/tooltip, the full light-mode
+override cascade, and the theme-toggle flash guard. Class names are kept verbatim;
+SCSS `&` nesting is flattened to plain CSS (no preprocessor in this repo) and the
+per-component Svelte hash replaces the CSS-module hash.
+
+NOT carried (they ship with their features, not here): the settings-panel / marker /
+popup rules (own components, p2-06/07/08); and the Phase 3/4/6 rules — server/MCP
+indicators, connection dot, send button, the `serverConnected` width, the extra
+control-button server states (`data-error`/`data-auto-sync`/`data-failed`/
+`data-no-hover`), draw canvas, drag-selection, and design/layout styles. Adding their
+(unused) selectors now would only trip Svelte's unused-CSS check. -->
+
 <style>
 	/* Protect stroke-based icons from host `svg { fill: currentColor }` (upstream
 	   L8–18; agentation issue #58). */
@@ -865,7 +927,11 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 		color: unset;
 		font-family: unset;
 		font-weight: unset;
+		font-style: unset;
 		line-height: unset;
+		letter-spacing: unset;
+		text-transform: unset;
+		text-decoration: unset;
 		box-shadow: unset;
 		outline: unset;
 	}
@@ -876,6 +942,39 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 		}
 		to {
 			opacity: 1;
+		}
+	}
+
+	@keyframes toolbarEnter {
+		from {
+			opacity: 0;
+			transform: scale(0.5) rotate(90deg);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1) rotate(0deg);
+		}
+	}
+
+	@keyframes toolbarHide {
+		from {
+			opacity: 1;
+			transform: scale(1);
+		}
+		to {
+			opacity: 0;
+			transform: scale(0.8);
+		}
+	}
+
+	@keyframes badgeEnter {
+		from {
+			opacity: 0;
+			transform: scale(0);
+		}
+		to {
+			opacity: 1;
+			transform: scale(1);
 		}
 	}
 
@@ -916,6 +1015,18 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 			Roboto,
 			sans-serif;
 		pointer-events: none;
+		transition:
+			left 0s,
+			top 0s,
+			right 0s,
+			bottom 0s; /* Instant positioning changes */
+	}
+
+	/* Positional defaults use :where() for zero specificity so a consumer
+	   className can override them (upstream L196–201; agentation issue #146). */
+	:where(.toolbar) {
+		bottom: 1.25rem;
+		right: 1.25rem;
 	}
 
 	.toolbarContainer {
@@ -938,12 +1049,28 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 			transform 0.4s cubic-bezier(0.19, 1, 0.22, 1);
 	}
 
+	.toolbarContainer.entrance {
+		animation: toolbarEnter 0.5s cubic-bezier(0.34, 1.2, 0.64, 1) forwards;
+	}
+
+	.toolbarContainer.hiding {
+		animation: toolbarHide 0.4s cubic-bezier(0.4, 0, 1, 1) forwards;
+		pointer-events: none;
+	}
+
 	.toolbarContainer.collapsed {
 		width: 44px;
 		height: 44px;
 		border-radius: 22px;
 		padding: 0;
 		cursor: pointer;
+	}
+
+	/* The collapsed pill's icon is optically nudged up 1px (upstream L240–242).
+	   `:global` because the SVG is rendered by the IconListSparkle child component
+	   and scoped styles do not pierce component boundaries. */
+	.toolbarContainer.collapsed :global(svg) {
+		margin-top: -1px;
 	}
 
 	.toolbarContainer.collapsed:hover {
@@ -1024,15 +1151,21 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 		box-shadow:
 			0 1px 3px rgba(0, 0, 0, 0.15),
 			inset 0 0 0 1px rgba(255, 255, 255, 0.04);
+		opacity: 1;
 		transition:
 			transform 0.3s ease,
 			opacity 0.2s ease;
+		transform: scale(1);
 	}
 
 	.badge.fadeOut {
 		opacity: 0;
 		transform: scale(0);
 		pointer-events: none;
+	}
+
+	.badge.entrance {
+		animation: badgeEnter 0.3s cubic-bezier(0.34, 1.2, 0.64, 1) 0.4s both;
 	}
 
 	/* ── Control buttons ── */
@@ -1152,12 +1285,17 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 	.tooltipBelow .buttonTooltip {
 		bottom: auto;
 		top: calc(100% + 14px);
+		transform: translateX(-50%) scale(0.95);
 	}
 
 	.tooltipBelow .buttonTooltip::after {
 		top: -4px;
 		bottom: auto;
 		border-radius: 2px 0 0 0;
+	}
+
+	.tooltipBelow .buttonWrapper:hover .buttonTooltip {
+		transform: translateX(-50%) scale(1);
 	}
 
 	.tooltipsHidden .buttonTooltip {
@@ -1191,6 +1329,24 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 		right: 8px;
 	}
 
+	/* When the toolbar is dragged near the top, the tooltip flips below; the
+	   corner-alignment offsets still apply (upstream L707–741). */
+	.tooltipBelow .buttonWrapperAlignLeft .buttonTooltip {
+		transform: translateX(-12px) scale(0.95);
+	}
+
+	.tooltipBelow .buttonWrapperAlignLeft:hover .buttonTooltip {
+		transform: translateX(-12px) scale(1);
+	}
+
+	.tooltipBelow .buttonWrapperAlignRight .buttonTooltip {
+		transform: translateX(calc(-100% + 12px)) scale(0.95);
+	}
+
+	.tooltipBelow .buttonWrapperAlignRight:hover .buttonTooltip {
+		transform: translateX(calc(-100% + 12px)) scale(1);
+	}
+
 	.divider {
 		width: 1px;
 		height: 12px;
@@ -1217,6 +1373,8 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 		background-color: color-mix(in srgb, var(--agentation-color-accent) 4%, transparent);
 		pointer-events: none !important;
 		box-sizing: border-box;
+		will-change: opacity;
+		contain: layout style;
 	}
 
 	.hoverHighlight.enter {
@@ -1230,15 +1388,17 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 		pointer-events: none !important;
 		background-color: color-mix(in srgb, var(--agentation-color-green) 5%, transparent);
 		box-sizing: border-box;
+		will-change: opacity;
 	}
 
 	.singleSelectOutline {
 		position: fixed;
-		border: 2px solid color-mix(in srgb, var(--agentation-color-accent) 60%, transparent);
+		border: 2px solid color-mix(in srgb, var(--agentation-color-blue) 60%, transparent);
 		border-radius: 4px;
 		pointer-events: none !important;
-		background-color: color-mix(in srgb, var(--agentation-color-accent) 5%, transparent);
+		background-color: color-mix(in srgb, var(--agentation-color-blue) 5%, transparent);
 		box-sizing: border-box;
+		will-change: opacity;
 	}
 
 	.multiSelectOutline.enter,
@@ -1297,5 +1457,71 @@ send-button, draw/layout styles, and the full light-mode override cascade. -->
 
 	.fixedMarkersLayer > :global(*) {
 		pointer-events: auto;
+	}
+
+	/* ── Light mode (upstream L2137–2223) ──
+	   The `[data-agentation-theme="light"]` ancestor is the portal wrapper rendered
+	   by this component, so Svelte keeps these scoped rules. DIVERGENCE(upstream):
+	   the server-state button variants (`data-error`/`data-auto-sync`/`data-failed`/
+	   `data-no-hover`) are dropped here exactly as in the dark cascade above — those
+	   states ship with the Phase 4 server path — so the hover `:not()` chains are
+	   trimmed to the wired states. */
+	[data-agentation-theme='light'] .toolbarContainer {
+		background: #fff;
+		color: rgba(0, 0, 0, 0.85);
+		box-shadow:
+			0 2px 8px rgba(0, 0, 0, 0.08),
+			0 4px 16px rgba(0, 0, 0, 0.06),
+			0 0 0 1px rgba(0, 0, 0, 0.04);
+	}
+
+	[data-agentation-theme='light'] .toolbarContainer.collapsed:hover {
+		background: #f5f5f5;
+	}
+
+	[data-agentation-theme='light'] .controlButton {
+		color: rgba(0, 0, 0, 0.5);
+	}
+
+	[data-agentation-theme='light'] .controlButton:hover:not(:disabled):not([data-active='true']) {
+		background: rgba(0, 0, 0, 0.06);
+		color: rgba(0, 0, 0, 0.85);
+	}
+
+	[data-agentation-theme='light'] .controlButton[data-active='true'] {
+		color: var(--agentation-color-blue);
+		background: color-mix(in srgb, var(--agentation-color-blue) 15%, transparent);
+	}
+
+	[data-agentation-theme='light']
+		.controlButton[data-danger]:hover:not(:disabled):not([data-active='true']) {
+		color: var(--agentation-color-red);
+		background: color-mix(in srgb, var(--agentation-color-red) 15%, transparent);
+	}
+
+	[data-agentation-theme='light'] .buttonTooltip {
+		background: #fff;
+		color: rgba(0, 0, 0, 0.85);
+		box-shadow:
+			0 2px 8px rgba(0, 0, 0, 0.08),
+			0 4px 16px rgba(0, 0, 0, 0.06),
+			0 0 0 1px rgba(0, 0, 0, 0.04);
+	}
+
+	[data-agentation-theme='light'] .buttonTooltip::after {
+		background: #fff;
+	}
+
+	[data-agentation-theme='light'] .divider {
+		background: rgba(0, 0, 0, 0.1);
+	}
+
+	/* Theme-toggle flash guard (upstream L166–169). DIVERGENCE(upstream): the class
+	   is added imperatively to the portal wrapper for one frame (see
+	   `handleToggleTheme`), so the selector is kept `:global` — it disables
+	   transitions on every descendant during the switch, which scoped styles can't
+	   target via `*`. */
+	:global(.disableTransitions :is(*, *::before, *::after)) {
+		transition: none !important;
 	}
 </style>
