@@ -28,14 +28,21 @@
 	// popups with `PendingMarker` (L4500–4690), and the settings panel toggle with
 	// its open/close animation (L636–648).
 	//
+	// PUBLIC SURFACE (issue #26, p2-11): the `PageFeedbackToolbarCSSProps` /
+	// `AgentationProps` types live in `index.svelte`; the Phase-2 subset is wired
+	// here — `className`, `copyToClipboard` (default `true`), `onCopy`, and the
+	// four annotation callbacks (threaded into the annotations controller). The
+	// inert props (`endpoint`/`sessionId`/`onSubmit`/`webhookUrl`/`demo*`) are
+	// accepted by the type but drive nothing until Phases 4/5.
+	//
 	// OUT OF SCOPE — left as `// DIVERGENCE(upstream):` markers at the omission sites:
-	//   - copy / clear-all / send / keyboard-shortcut / freeze end-to-end (p2-12):
-	//     the pause + copy buttons render with minimal handlers; clear is wired to
-	//     the (already-ported) markers/annotations controllers since that contract
-	//     exists. Send (webhook) and the keyboard handler are omitted (Phase 4 / p2-12).
+	//   - the copy *feedback UI* — the `copied` icon animation + `autoClearAfterCopy`
+	//     (L3120–3125) — plus send / keyboard-shortcut / freeze end-to-end (p2-12):
+	//     the pause + copy buttons render with minimal handlers (copy now fires
+	//     `onCopy` + clipboard); clear is wired to the markers/annotations
+	//     controllers. Send (webhook) and the keyboard handler are omitted (Phase 4 / p2-12).
 	//   - design / layout / draw mode, multi-select overlays, server & demo paths
 	//     (Phases 3 / 4 / 6): omitted.
-	//   - the public prop surface + `index.ts` exports (p2-11).
 	//
 	// STYLE PARITY (issue #25, p2-10): the shell now carries full upstream parity —
 	// the entrance + hide animations, the badge entrance, the light-mode override
@@ -51,6 +58,7 @@
 	import { originalSetTimeout, originalRequestAnimationFrame } from '../../utils/freeze-animations';
 	import { parseComputedStylesString } from '../../utils/element-identification';
 	import { loadToolbarHidden, saveToolbarHidden } from '../../utils/storage';
+	import { generateOutput } from '../../utils/generate-output';
 	import {
 		IconListSparkle,
 		IconPausePlayAnimated,
@@ -63,9 +71,21 @@
 	import { AnnotationMarker, PendingMarker, ExitingMarker } from './annotation-marker';
 	import AnnotationPopupCSS from '../annotation-popup/index.svelte';
 	import SettingsPanel from './settings-panel/index.svelte';
-	import type { PageToolbarProps } from './index.svelte';
+	import type { PageFeedbackToolbarCSSProps } from './index.svelte';
 
-	let { class: userClassName }: PageToolbarProps = $props();
+	// The Phase-2 subset of the public surface is destructured + wired below; the
+	// inert props (`endpoint`, `sessionId`, `onSubmit`, `webhookUrl`,
+	// `onSessionCreated`, `demo*`) are accepted by the type but not destructured —
+	// they drive nothing until Phases 4/5. See `index.svelte` for the full surface.
+	let {
+		onAnnotationAdd,
+		onAnnotationUpdate,
+		onAnnotationDelete,
+		onAnnotationsClear,
+		onCopy,
+		copyToClipboard = true,
+		className: userClassName
+	}: PageFeedbackToolbarCSSProps = $props();
 
 	// Storage namespace — upstream uses the page pathname (index.tsx L633–634).
 	const pathname = typeof window !== 'undefined' ? window.location.pathname : '/';
@@ -84,7 +104,22 @@
 
 	// --- Controllers (the three state clusters + settings) -----------------------
 	const settings = new SettingsController();
-	const annotations = new AnnotationsController({ pathname });
+	// The annotation callbacks (upstream props, index.tsx L292–299) are threaded
+	// into the controller, which fires each at the moment the list actually
+	// mutates — so `onAnnotationDelete`/`onAnnotationsClear` fire when removal is
+	// committed (end of the exit/stagger animation, when the markers controller
+	// calls through), not when the animation starts (issue #26 AC).
+	// Forwarded through closures (not passed by reference): a bare `onAnnotationAdd`
+	// would capture only the prop's initial value (Svelte `state_referenced_locally`),
+	// so each wrapper reads the live prop at call time — harmless here (mount props
+	// don't change) and correct if a host ever swaps a callback.
+	const annotations = new AnnotationsController({
+		pathname,
+		onAnnotationAdd: (a) => onAnnotationAdd?.(a),
+		onAnnotationUpdate: (a) => onAnnotationUpdate?.(a),
+		onAnnotationDelete: (a) => onAnnotationDelete?.(a),
+		onAnnotationsClear: (a) => onAnnotationsClear?.(a)
+	});
 	const markers = new MarkersController({
 		getAnnotations: () => annotations.annotations,
 		removeAnnotation: (id) => annotations.remove(id),
@@ -414,8 +449,38 @@
 		// reflects state.
 		isFrozen = !isFrozen;
 	}
-	function copyOutput() {
-		// DIVERGENCE(upstream): copy-to-clipboard end-to-end is p2-12.
+	// Copy the markdown output (upstream `copyOutput`, L2944–3142). The
+	// annotation-only path is wired here: build the output, optionally write it to
+	// the clipboard (gated on `copyToClipboard`, default `true`), then fire
+	// `onCopy` with the markdown regardless of clipboard success.
+	// DIVERGENCE(upstream): the draw-stroke / design / wireframe output branches
+	// (L2951–3106) are Phases 3/6 — omitted, so an empty output is a no-op rather
+	// than upstream's `"## Page Feedback: …"` draw-only fallback. The `copied` icon
+	// animation + `autoClearAfterCopy` (L3120–3125) are copy-feedback UI deferred
+	// to p2-12; `copied` stays a const `false` until then.
+	async function copyOutput() {
+		const displayUrl =
+			typeof window !== 'undefined'
+				? window.location.pathname + window.location.search + window.location.hash
+				: pathname;
+
+		const output = generateOutput(
+			annotations.annotations,
+			displayUrl,
+			settings.settings.outputDetail
+		);
+		if (!output) return;
+
+		if (copyToClipboard) {
+			try {
+				await navigator.clipboard.writeText(output);
+			} catch {
+				// Clipboard may fail (permissions, not HTTPS, etc.) — continue anyway.
+			}
+		}
+
+		// Fire callback with markdown output (always, regardless of clipboard success).
+		onCopy?.(output);
 	}
 	function deactivate() {
 		picker.deactivate();
