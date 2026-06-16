@@ -98,9 +98,13 @@ as Svelte 5. Decompose its ~30 `useState`s into runes-based controllers
       freeze-animations exclusion contract depends on them). (#25 — toolbar
       shell parity; settings/popup/marker styles landed with their components
       in #21/#22/#23.)
-- [ ] Wire MVP features: pick element → comment → marker → edit/delete →
+- [x] Wire MVP features: pick element → comment → marker → edit/delete →
       clear all → generate markdown → copy to clipboard; keyboard shortcuts;
-      `pauseAnimations`; localStorage persistence across reloads.
+      `pauseAnimations`; localStorage persistence across reloads. (#27 — copy
+      feedback UI (`copied` flash + `autoClearAfterCopy`), the Escape /
+      Cmd-Ctrl+Shift+F / P / H / C / X shortcuts with the typing guard, and
+      the freeze toggle delegating to `utils/freeze-animations` (incl.
+      unfreeze-on-deactivate + unmount safety) wired into `Toolbar.svelte`.)
 - [x] Props: implement upstream's `AgentationProps` surface —
       `copyToClipboard`, `className`, callbacks `onAnnotationAdd`,
       `onAnnotationUpdate`, `onAnnotationDelete`, `onAnnotationsClear`,

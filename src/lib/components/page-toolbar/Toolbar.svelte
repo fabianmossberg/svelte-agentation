@@ -55,7 +55,12 @@
 	import { MarkersController } from '../../internal/markers.svelte';
 	import { PickerController } from '../../internal/picker.svelte';
 	import { SettingsController } from '../../internal/settings.svelte';
-	import { originalSetTimeout, originalRequestAnimationFrame } from '../../utils/freeze-animations';
+	import {
+		originalSetTimeout,
+		originalRequestAnimationFrame,
+		freeze as freezeAll,
+		unfreeze as unfreezeAll
+	} from '../../utils/freeze-animations';
 	import { parseComputedStylesString } from '../../utils/element-identification';
 	import { loadToolbarHidden, saveToolbarHidden } from '../../utils/storage';
 	import { generateOutput } from '../../utils/generate-output';
@@ -157,10 +162,8 @@
 	let isToolbarHidden = $state(loadToolbarHidden()); // L345
 	let isToolbarHiding = $state(false); // L346 — plays the hide animation before unmount
 	let showEntranceAnimation = $state(false); // L566 — first-load entrance animation
-	// DIVERGENCE(upstream): freeze + copy end-to-end are p2-12; these are minimal
-	// render-only flags so the pause/copy buttons reflect a state but do no work yet.
 	let isFrozen = $state(false); // L429
-	const copied = false; // L404
+	let copied = $state(false); // L404 — copy-feedback icon state (resets after 2s)
 
 	// Component refs (`$state` so `bind:this` reactivity is tracked).
 	let portalWrapper = $state<HTMLDivElement>();
@@ -195,6 +198,15 @@
 	// the controller reproduces upstream's visibility `useEffect` (L650–679).
 	$effect(() => {
 		markers.setVisible(shouldShowMarkers);
+	});
+
+	// Reset-on-deactivate: when feedback mode turns off, unfreeze the page if it was
+	// frozen (upstream reset effect, L1770–1784 — the `isFrozen` term). The pending/
+	// editing/hover/settings resets that upstream also does here are handled by the
+	// picker controller + `deactivate()`; the freeze flag is toolbar-owned, so the
+	// unfreeze lives here. Tracks `isActive` only — the freeze read happens inside.
+	$effect(() => {
+		if (!isActive && isFrozen) unfreezeAnimations();
 	});
 
 	// Settings open/close exit animation (upstream L636–648).
@@ -324,9 +336,21 @@
 		const events = ['mousedown', 'click', 'pointerdown'] as const;
 		events.forEach((evt) => document.body.addEventListener(evt, stop));
 
+		// Keyboard shortcuts (upstream keydown effect, L3365–3486). Registered once —
+		// the handler reads component `$state`/`$derived` live (Svelte compiles those
+		// reads to getters), so a single listener replaces upstream's dep-array
+		// re-registration with identical behavior.
+		document.addEventListener('keydown', handleKeyDown);
+
 		return () => {
 			events.forEach((evt) => document.body.removeEventListener(evt, stop));
+			document.removeEventListener('keydown', handleKeyDown);
 			if (tooltipSessionTimer) clearTimeout(tooltipSessionTimer);
+			// Unmount safety (upstream L1786–1791): if the component is removed while
+			// the page is frozen, unfreeze unconditionally so the host page is never
+			// left with its animations/timers paused. Raw util (not the guarded
+			// `unfreezeAnimations`) — the local `isFrozen` flag is irrelevant on teardown.
+			unfreezeAll();
 			picker.destroy();
 			markers.destroy();
 		};
@@ -444,10 +468,23 @@
 	}
 
 	// --- Control button handlers -------------------------------------------------
+	// Freeze/unfreeze page animations via `utils/freeze-animations.ts` (upstream
+	// `freezeAnimations`/`unfreezeAnimations`/`toggleFreeze`, L1642–1661). The util
+	// excludes `[data-feedback-toolbar]` subtrees, so the toolbar itself keeps
+	// animating while the page is frozen. Idempotent guards match upstream.
+	function freezeAnimations() {
+		if (isFrozen) return;
+		freezeAll();
+		isFrozen = true;
+	}
+	function unfreezeAnimations() {
+		if (!isFrozen) return;
+		unfreezeAll();
+		isFrozen = false;
+	}
 	function toggleFreeze() {
-		// DIVERGENCE(upstream): real freeze is p2-12; flip a local flag so the icon
-		// reflects state.
-		isFrozen = !isFrozen;
+		if (isFrozen) unfreezeAnimations();
+		else freezeAnimations();
 	}
 	// Copy the markdown output (upstream `copyOutput`, L2944–3142). The
 	// annotation-only path is wired here: build the output, optionally write it to
@@ -455,9 +492,7 @@
 	// `onCopy` with the markdown regardless of clipboard success.
 	// DIVERGENCE(upstream): the draw-stroke / design / wireframe output branches
 	// (L2951–3106) are Phases 3/6 — omitted, so an empty output is a no-op rather
-	// than upstream's `"## Page Feedback: …"` draw-only fallback. The `copied` icon
-	// animation + `autoClearAfterCopy` (L3120–3125) are copy-feedback UI deferred
-	// to p2-12; `copied` stays a const `false` until then.
+	// than upstream's `"## Page Feedback: …"` draw-only fallback.
 	async function copyOutput() {
 		const displayUrl =
 			typeof window !== 'undefined'
@@ -481,12 +516,93 @@
 
 		// Fire callback with markdown output (always, regardless of clipboard success).
 		onCopy?.(output);
+
+		// Copy-feedback UI (upstream L3120–3121): flash the copied icon state for 2s.
+		// `originalSetTimeout` so a frozen page can't stall the reset.
+		copied = true;
+		originalSetTimeout(() => (copied = false), 2000);
+
+		// Auto-clear after copy (upstream L3123–3125): staggered clear 500ms later,
+		// honoring the setting. Routed through the markers controller's staggered
+		// clear (upstream `clearAll`), same path as the trash button / `X` shortcut.
+		if (settings.settings.autoClearAfterCopy) {
+			originalSetTimeout(() => markers.startClear(), 500);
+		}
 	}
 	function deactivate() {
 		picker.deactivate();
 		annotations.cancelPending();
 		annotations.cancelEdit();
 		showSettings = false;
+	}
+
+	// Keyboard shortcuts (upstream `handleKeyDown`, L3367–3482). Installed once in
+	// `onMount`; reads live component state. The typing guard (L3368–3373) blocks the
+	// single-key shortcuts inside inputs/textareas/contenteditable.
+	// DIVERGENCE(upstream): the Escape cascade's design-mode (L3377–3384), draw-mode
+	// (L3386–3389), and multi-select (L3391–3394) branches are Phases 6/3; the `L`
+	// layout (L3426–3437) and `S` send (L3469–3481) shortcuts stay unwired (Phases 6/4).
+	function handleKeyDown(e: KeyboardEvent) {
+		const target = e.target as HTMLElement;
+		const isTyping =
+			target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+		if (e.key === 'Escape') {
+			if (annotations.pending) {
+				// Let the popup handle Escape — its textarea keydown cancels + stops
+				// propagation, so this document handler is a no-op while pending (L3395–3396).
+			} else if (isActive) {
+				hideTooltipsUntilMouseLeave();
+				deactivate();
+			}
+		}
+
+		// Cmd+Shift+F / Ctrl+Shift+F to toggle feedback mode (L3404–3413).
+		if ((e.metaKey || e.ctrlKey) && e.shiftKey && (e.key === 'f' || e.key === 'F')) {
+			e.preventDefault();
+			hideTooltipsUntilMouseLeave();
+			if (isActive) deactivate();
+			else picker.activate();
+			return;
+		}
+
+		// Skip the remaining single-key shortcuts while typing or holding a modifier (L3416).
+		if (isTyping || e.metaKey || e.ctrlKey) return;
+
+		// "P" to toggle pause/freeze (L3419–3423).
+		if (e.key === 'p' || e.key === 'P') {
+			e.preventDefault();
+			hideTooltipsUntilMouseLeave();
+			toggleFreeze();
+		}
+
+		// "H" to toggle marker visibility — only with annotations (L3440–3446).
+		if (e.key === 'h' || e.key === 'H') {
+			if (annotations.annotations.length > 0) {
+				e.preventDefault();
+				hideTooltipsUntilMouseLeave();
+				showMarkers = !showMarkers;
+			}
+		}
+
+		// "C" to copy output — only with annotations (L3449–3455).
+		if (e.key === 'c' || e.key === 'C') {
+			if (annotations.annotations.length > 0) {
+				e.preventDefault();
+				hideTooltipsUntilMouseLeave();
+				copyOutput();
+			}
+		}
+
+		// "X" to clear all — only with annotations (L3458–3466). Routed through the
+		// markers controller's staggered clear (same path as the trash button).
+		if (e.key === 'x' || e.key === 'X') {
+			if (annotations.annotations.length > 0) {
+				e.preventDefault();
+				hideTooltipsUntilMouseLeave();
+				markers.startClear();
+			}
+		}
 	}
 
 	// Theme toggle with the flash guard (upstream `toggleTheme`, L568–573): adding

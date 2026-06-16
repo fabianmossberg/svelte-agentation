@@ -17,7 +17,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 // and behave normally.
 vi.mock('../../utils/freeze-animations', () => ({
 	originalSetTimeout: (handler: TimerHandler, timeout?: number) => setTimeout(handler, timeout),
-	originalRequestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0)
+	originalRequestAnimationFrame: (cb: FrameRequestCallback) => setTimeout(() => cb(0), 0),
+	// The toolbar imports `freeze`/`unfreeze` (pause-animations wiring) and calls
+	// `unfreeze` on unmount (the safety teardown) — stub them so the mock is complete.
+	freeze: () => {},
+	unfreeze: () => {}
 }));
 
 import { flushSync, mount, unmount } from 'svelte';
