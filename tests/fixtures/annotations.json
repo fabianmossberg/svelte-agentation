@@ -76,5 +76,44 @@
 				"boundingBox": { "x": 5.5, "y": 6.6, "width": 7.7, "height": 8.8 }
 			}
 		]
+	},
+	{
+		"name": "drag-multiselect",
+		"pathname": "/pricing",
+		"annotations": [
+			{
+				"id": "d1",
+				"x": 42.5,
+				"y": 320,
+				"comment": "These three CTAs should line up",
+				"element": "3 elements: button \"Save\", link \"Docs\", img",
+				"elementPath": "multi-select",
+				"timestamp": 0,
+				"isMultiSelect": true,
+				"boundingBox": { "x": 100.2, "y": 280.7, "width": 420.4, "height": 90.9 },
+				"fullPath": "html > body > main > section.cards > button.cta",
+				"accessibility": "role=button, aria-label=Save",
+				"computedStyles": "display: flex; color: rgb(0, 0, 0); background-color: rgb(34, 197, 94)",
+				"computedStylesObj": {
+					"display": "flex",
+					"color": "rgb(0, 0, 0)",
+					"background-color": "rgb(34, 197, 94)"
+				},
+				"nearbyElements": "<span>, <svg>, <a>",
+				"cssClasses": "cta cta-primary",
+				"nearbyText": "Choose the plan that fits your team"
+			},
+			{
+				"id": "d2",
+				"x": 18.75,
+				"y": 540,
+				"comment": "Whitespace here feels cramped",
+				"element": "Area selection",
+				"elementPath": "region at (60, 500)",
+				"timestamp": 0,
+				"isMultiSelect": true,
+				"boundingBox": { "x": 60, "y": 500, "width": 240, "height": 80 }
+			}
+		]
 	}
 ]

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { PickerController, type PickerControllerOptions } from './picker.svelte.js';
 import type { PendingAnnotation } from './annotations.svelte.js';
 
@@ -15,9 +15,10 @@ afterEach(() => {
 	vi.restoreAllMocks();
 	document.body.innerHTML = '';
 	document.getElementById(CURSOR_STYLE_ID)?.remove();
-	// jsdom ships no layout, so `elementFromPoint` doesn't exist as a property —
-	// we assign it per-test (below) rather than spy on it; remove it here.
+	// jsdom ships no layout, so `elementFromPoint`/`elementsFromPoint` don't exist
+	// as properties — we assign them per-test rather than spy; remove them here.
 	delete (document as unknown as { elementFromPoint?: unknown }).elementFromPoint;
+	delete (document as unknown as { elementsFromPoint?: unknown }).elementsFromPoint;
 });
 
 /** Build a controller; override options per-test. */
@@ -47,12 +48,42 @@ function hitTestReturns(el: Element | null) {
 
 /** Dispatch a bubbling mouse event on `target` (defaults to document.body). */
 function fire(
-	type: 'mousemove' | 'click',
+	type: 'mousedown' | 'mousemove' | 'mouseup' | 'click',
 	clientX: number,
 	clientY: number,
 	target: EventTarget = document.body
 ) {
 	target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY }));
+}
+
+/**
+ * jsdom has no layout, so `getBoundingClientRect` returns all-zeros (which the
+ * drag size filters reject). Stub a fixed rect so an element can match a drag box.
+ */
+function stubRect(el: Element, rect: { left: number; top: number; width: number; height: number }) {
+	const value: DOMRect = {
+		left: rect.left,
+		top: rect.top,
+		width: rect.width,
+		height: rect.height,
+		right: rect.left + rect.width,
+		bottom: rect.top + rect.height,
+		x: rect.left,
+		y: rect.top,
+		toJSON: () => ({})
+	};
+	el.getBoundingClientRect = () => value;
+}
+
+/**
+ * `document.elementsFromPoint` is absent in jsdom (no layout). The live-highlight
+ * pass during a drag calls it; default it to `[]` so the drag path runs without
+ * throwing. Tests that need point hits override the return value.
+ */
+function stubElementsFromPoint(elements: Element[] = []) {
+	(document as unknown as { elementsFromPoint: () => Element[] }).elementsFromPoint = vi
+		.fn()
+		.mockReturnValue(elements);
 }
 
 describe('PickerController — activate/deactivate', () => {
@@ -324,5 +355,249 @@ describe('PickerController — listener cleanup', () => {
 		hitTestReturns(appendEl('button'));
 		fire('click', 10, 10);
 		expect(onPick).not.toHaveBeenCalled();
+	});
+});
+
+describe('PickerController — multi-select drag', () => {
+	// The hover mousemove handler runs alongside the drag handler on every
+	// `mousemove`; default its hit-test to null so it harmlessly clears hover
+	// instead of throwing (jsdom has no `elementFromPoint`). Tests that need a
+	// click hit-test override this with `hitTestReturns(...)`.
+	beforeEach(() => hitTestReturns(null));
+
+	it('starts a drag only once the pointer travels past DRAG_THRESHOLD (8px)', () => {
+		const { controller } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		fire('mousedown', 100, 100);
+		// 5px diagonal (dist² = 50 < 64) — below threshold, no drag yet.
+		fire('mousemove', 105, 105);
+		expect(controller.isDragging).toBe(false);
+
+		// 10px diagonal (dist² = 200 ≥ 64) — crosses the threshold.
+		fire('mousemove', 110, 110);
+		expect(controller.isDragging).toBe(true);
+	});
+
+	it('does not start a drag from a mousedown on a text element (native selection)', () => {
+		const { controller } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		const paragraph = appendEl('p', (el) => (el.textContent = 'Selectable copy'));
+		fire('mousedown', 100, 100, paragraph);
+		fire('mousemove', 200, 200);
+
+		expect(controller.isDragging).toBe(false);
+	});
+
+	it('does not start a drag from a mousedown on a contentEditable element', () => {
+		const { controller } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		const editable = appendEl('div', (el) => el.setAttribute('contenteditable', 'true'));
+		// jsdom doesn't compute `isContentEditable` from the attribute — force it so
+		// we exercise the controller's `target.isContentEditable` guard directly.
+		Object.defineProperty(editable, 'isContentEditable', { value: true, configurable: true });
+		fire('mousedown', 100, 100, editable);
+		fire('mousemove', 200, 200);
+
+		expect(controller.isDragging).toBe(false);
+	});
+
+	it('does not start a drag from a mousedown inside the toolbar', () => {
+		const { controller } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		const toolbar = appendEl('div', (el) => el.setAttribute('data-feedback-toolbar', ''));
+		const inner = document.createElement('div');
+		toolbar.appendChild(inner);
+		fire('mousedown', 100, 100, inner);
+		fire('mousemove', 200, 200);
+
+		expect(controller.isDragging).toBe(false);
+	});
+
+	it('on mouseup over matched elements builds one multi-select pending annotation', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		const save = appendEl('button', (el) => (el.textContent = 'Save'));
+		stubRect(save, { left: 120, top: 120, width: 80, height: 40 });
+		const docs = appendEl('a', (el) => {
+			el.textContent = 'Docs';
+			el.setAttribute('href', '/docs');
+		});
+		stubRect(docs, { left: 220, top: 130, width: 60, height: 30 });
+
+		// Drag a box from (100,100) to (400,400) — both elements intersect it.
+		fire('mousedown', 100, 100);
+		fire('mousemove', 400, 400);
+		fire('mouseup', 400, 400);
+
+		expect(onPick).toHaveBeenCalledTimes(1);
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.element).toBe('2 elements: button "Save", link "Docs"');
+		expect(pending.elementPath).toBe('multi-select');
+		expect(pending.isMultiSelect).toBe(true);
+		// Combined bounds: union of the two stubbed rects (document coords, scrollY 0).
+		// left 120, top 120, right max(200,280)=280, bottom max(160,160)=160.
+		expect(pending.boundingBox).toEqual({ x: 120, y: 120, width: 160, height: 40 });
+		// Forensic fields come from the first element in document order (the button).
+		expect(typeof pending.fullPath).toBe('string');
+		expect(pending.sourceFile).toBeUndefined();
+		expect(controller.isDragging).toBe(false);
+	});
+
+	it('lists only the first five names with a "+N more" suffix', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		for (let i = 0; i < 7; i++) {
+			const btn = appendEl('button', (el) => (el.textContent = `B${i}`));
+			stubRect(btn, { left: 110 + i, top: 110 + i, width: 20, height: 20 });
+		}
+
+		fire('mousedown', 100, 100);
+		fire('mousemove', 400, 400);
+		fire('mouseup', 400, 400);
+
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.element).toMatch(/^7 elements: /);
+		expect(pending.element).toContain(' +2 more');
+		// Exactly five names before the suffix.
+		expect(pending.element.split(', ')).toHaveLength(5);
+	});
+
+	it('drops a parent that contains another matched element', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		// <li> wraps an <a>; both match the selector and the box, but the parent is
+		// filtered out, leaving just the link.
+		const li = appendEl('li');
+		stubRect(li, { left: 110, top: 110, width: 200, height: 60 });
+		const link = document.createElement('a');
+		link.textContent = 'Nested';
+		li.appendChild(link);
+		stubRect(link, { left: 115, top: 115, width: 100, height: 30 });
+
+		fire('mousedown', 100, 100);
+		fire('mousemove', 400, 400);
+		fire('mouseup', 400, 400);
+
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.element).toBe('1 elements: link "Nested"');
+	});
+
+	it('over empty space ≥ 20×20px creates an "Area selection" annotation', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		// Only a <div> on the page — not in the candidate selector, so nothing matches.
+		appendEl('div', (el) => (el.textContent = 'background'));
+
+		fire('mousedown', 60, 500);
+		fire('mousemove', 300, 580);
+		fire('mouseup', 300, 580);
+
+		expect(onPick).toHaveBeenCalledTimes(1);
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.element).toBe('Area selection');
+		expect(pending.elementPath).toBe('region at (60, 500)');
+		expect(pending.isMultiSelect).toBe(true);
+		expect(pending.boundingBox).toEqual({ x: 60, y: 500, width: 240, height: 80 });
+	});
+
+	it('creates nothing for a drag smaller than 20×20px over empty space', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		// Crosses the 8px drag threshold but stays under the 20px area minimum.
+		fire('mousedown', 100, 100);
+		fire('mousemove', 112, 112);
+		expect(controller.isDragging).toBe(true);
+		fire('mouseup', 115, 115);
+
+		expect(onPick).not.toHaveBeenCalled();
+	});
+
+	it('renders a live highlight div into the bound container during a drag', () => {
+		const { controller } = makeController();
+		controller.activate();
+
+		const container = appendEl('div');
+		controller.setHighlightsContainer(container);
+
+		const target = appendEl('button', (el) => (el.textContent = 'Hit'));
+		stubRect(target, { left: 150, top: 150, width: 80, height: 40 });
+		// The nine sample points all resolve to the button.
+		stubElementsFromPoint([target]);
+
+		fire('mousedown', 100, 100);
+		fire('mousemove', 400, 400);
+
+		expect(container.children).toHaveLength(1);
+		expect(container.children[0].className).toBe('selectedElementHighlight');
+	});
+
+	it('swallows the click the browser fires right after a drag', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+		stubElementsFromPoint();
+
+		appendEl('div'); // empty page → area-selection drag
+
+		fire('mousedown', 60, 500);
+		fire('mousemove', 300, 580);
+		fire('mouseup', 300, 580);
+		expect(onPick).toHaveBeenCalledTimes(1); // the area selection
+
+		// The trailing click must NOT create a second (single-element) annotation.
+		hitTestReturns(appendEl('button'));
+		fire('click', 300, 580);
+		expect(onPick).toHaveBeenCalledTimes(1);
+
+		// A later, independent click works normally (the guard is one-shot).
+		fire('click', 320, 600);
+		expect(onPick).toHaveBeenCalledTimes(2);
+	});
+
+	it('resets drag state and empties the highlights container on deactivate', () => {
+		const { controller } = makeController();
+		controller.activate();
+
+		const container = appendEl('div');
+		controller.setHighlightsContainer(container);
+		const target = appendEl('button', (el) => (el.textContent = 'Hit'));
+		stubRect(target, { left: 150, top: 150, width: 80, height: 40 });
+		stubElementsFromPoint([target]);
+
+		fire('mousedown', 100, 100);
+		fire('mousemove', 400, 400);
+		expect(controller.isDragging).toBe(true);
+		expect(container.children.length).toBeGreaterThan(0);
+
+		controller.deactivate();
+		expect(controller.isDragging).toBe(false);
+		expect(container.children).toHaveLength(0);
+	});
+
+	it('does not start a drag while an annotation is pending', () => {
+		const { controller } = makeController({ isPending: () => true });
+		controller.activate();
+		stubElementsFromPoint();
+
+		fire('mousedown', 100, 100);
+		fire('mousemove', 200, 200);
+		expect(controller.isDragging).toBe(false);
 	});
 });
