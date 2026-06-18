@@ -32,9 +32,15 @@
 // (`setDragRect`/`setHighlightsContainer`) to avoid per-frame reactivity — exactly
 // as upstream uses refs "to avoid re-renders" (index.tsx L616, L2190).
 //
+// Cmd+shift+click multi-select (issue #30) is also here: the click-to-toggle path
+// (upstream L1943–1980), the modifier-release keyup commit (L2080–2123), and
+// `createMultiSelectPendingAnnotation` (L1663–1767). The pending set
+// (`pendingMultiSelectElements`) is reactive `$state` so the toolbar can render a
+// live highlight per selected element while the set is open; the modifier flags
+// stay a plain field (ref-like — upstream's `modifiersHeldRef`, L1779).
+//
 // Out of scope (issue #17), left as `// DIVERGENCE(upstream):` markers at the
 // omission sites:
-//   - cmd+shift+click multi-select (L1944–1980) → Phase 3 (p3-02).
 //   - draw-mode / design-mode click branches → Phases 3/6.
 //   - the `settings.blockInteractions` interactive-element handling and the
 //     pending/editing popup `.shake()` → settings/popup wiring (later issues).
@@ -71,6 +77,22 @@ export type HoverInfo = {
 	elementPath: string;
 	rect: DOMRect | null;
 	reactComponents?: string | null;
+};
+
+/**
+ * One element in the cmd+shift+click pending set. Mirrors upstream's
+ * `pendingMultiSelectElements` item shape (index.tsx L506–513): the live element
+ * reference plus its rect/name/path captured at select time. The toolbar reads
+ * the live `element` to draw a highlight per selected element while the set is
+ * open. `reactComponents` is on the shape for fidelity but stays undefined (React
+ * detection is Phase 7), exactly as in {@link HoverInfo}.
+ */
+export type MultiSelectItem = {
+	element: HTMLElement;
+	rect: DOMRect;
+	name: string;
+	path: string;
+	reactComponents?: string;
 };
 
 /**
@@ -312,12 +334,31 @@ export class PickerController {
 	/** The live-highlights container div (upstream `highlightsContainerRef`, L621). */
 	#highlightsContainerEl: HTMLElement | null = null;
 
+	// --- Cmd+shift+click multi-select state (upstream L506, L1779) ------------
+	/**
+	 * The open cmd+shift+click set: elements toggled in while both modifiers are
+	 * held, committed as one pending annotation on release. Reactive so the
+	 * toolbar draws a live highlight per element (upstream `pendingMultiSelectElements`,
+	 * L506). A plain array in `$state` is right here — it's iterated for rendering,
+	 * never mutated element-wise, so a `SvelteSet`/`SvelteMap` would add nothing.
+	 */
+	pendingMultiSelectElements = $state<MultiSelectItem[]>([]);
+	/**
+	 * Which of cmd/shift are currently held, tracked across keydown/keyup so the
+	 * release of *either* (while both were down) commits the set. Plain field, not
+	 * reactive — upstream keeps it as `modifiersHeldRef` (L1779) for the same reason.
+	 */
+	#modifiersHeld = { cmd: false, shift: false };
+
 	// Bound listener references so `removeEventListener` matches on teardown.
 	#onMouseMove = (e: MouseEvent) => this.#handleMouseMove(e);
 	#onClick = (e: MouseEvent) => this.#handleClick(e);
 	#onMouseDown = (e: MouseEvent) => this.#handleMouseDown(e);
 	#onDragMouseMove = (e: MouseEvent) => this.#handleDragMouseMove(e);
 	#onMouseUp = (e: MouseEvent) => this.#handleMouseUp(e);
+	#onKeyDown = (e: KeyboardEvent) => this.#handleKeyDown(e);
+	#onKeyUp = (e: KeyboardEvent) => this.#handleKeyUp(e);
+	#onBlur = () => this.#handleBlur();
 
 	constructor(options: PickerControllerOptions) {
 		this.#options = options;
@@ -352,6 +393,11 @@ export class PickerController {
 		document.addEventListener('mousedown', this.#onMouseDown);
 		document.addEventListener('mousemove', this.#onDragMouseMove, { passive: true });
 		document.addEventListener('mouseup', this.#onMouseUp);
+		// Cmd+shift+click multi-select: track modifier hold and commit on release
+		// (upstream L2115–2117). `blur` resets when the window loses focus (cmd+tab).
+		document.addEventListener('keydown', this.#onKeyDown);
+		document.addEventListener('keyup', this.#onKeyUp);
+		window.addEventListener('blur', this.#onBlur);
 		this.#injectCursor();
 	}
 
@@ -391,10 +437,17 @@ export class PickerController {
 			document.removeEventListener('mousedown', this.#onMouseDown);
 			document.removeEventListener('mousemove', this.#onDragMouseMove);
 			document.removeEventListener('mouseup', this.#onMouseUp);
+			document.removeEventListener('keydown', this.#onKeyDown);
+			document.removeEventListener('keyup', this.#onKeyUp);
+			window.removeEventListener('blur', this.#onBlur);
 			this.#removeCursor();
 		}
 		this.hoverInfo = null;
 		this.#resetDrag();
+		// Reset the multi-select set + modifier tracking (upstream reset-on-deactivate
+		// effect, L1778–1779).
+		this.pendingMultiSelectElements = [];
+		this.#modifiersHeld = { cmd: false, shift: false };
 	}
 
 	/**
@@ -471,7 +524,39 @@ export class PickerController {
 		if (closestCrossingShadow(target, '[data-annotation-popup]')) return;
 		if (closestCrossingShadow(target, '[data-annotation-marker]')) return;
 
-		// DIVERGENCE(upstream): cmd+shift+click multi-select (L1944–1980) — Phase 3.
+		// Cmd+shift+click toggles an element in/out of the pending multi-select set
+		// (upstream L1943–1981). This branch owns the click (it `return`s), so the
+		// single-click create path below never runs while building a set. Its own
+		// `!pending && !editing` guard keeps it ahead of the shake-on-open block.
+		if (e.metaKey && e.shiftKey && !this.#isPending() && !this.#isEditing()) {
+			e.preventDefault();
+			e.stopPropagation();
+
+			const elementUnder = deepElementFromPoint(e.clientX, e.clientY);
+			if (!elementUnder) return;
+
+			const rect = elementUnder.getBoundingClientRect();
+			// DIVERGENCE(upstream): plain `identifyElement` (see `#handleMouseMove`) —
+			// no `reactComponents` (React detection is Phase 7).
+			const { name, path } = identifyElement(elementUnder);
+
+			// Toggle: deselect if already in the set, otherwise add (upstream L1958–1979).
+			const existingIndex = this.pendingMultiSelectElements.findIndex(
+				(item) => item.element === elementUnder
+			);
+			if (existingIndex >= 0) {
+				this.pendingMultiSelectElements = this.pendingMultiSelectElements.filter(
+					(_, i) => i !== existingIndex
+				);
+			} else {
+				this.pendingMultiSelectElements = [
+					...this.pendingMultiSelectElements,
+					{ element: elementUnder, rect, name, path, reactComponents: undefined }
+				];
+			}
+			return;
+		}
+
 		// DIVERGENCE(upstream): the `settings.blockInteractions` interactive-element
 		// branch (L1982–1993) — settings controller, later issue.
 
@@ -539,6 +624,168 @@ export class PickerController {
 			targetElement: elementUnder // stored for live position queries
 		});
 
+		this.hoverInfo = null;
+	}
+
+	/**
+	 * Track cmd/shift press so the keyup handler knows both were held. Port of
+	 * upstream's `handleKeyDown` inside the keyup effect (index.tsx L2084–2087).
+	 */
+	#handleKeyDown(e: KeyboardEvent): void {
+		if (e.key === 'Meta') this.#modifiersHeld.cmd = true;
+		if (e.key === 'Shift') this.#modifiersHeld.shift = true;
+	}
+
+	/**
+	 * Releasing either modifier while both were held commits the pending set as one
+	 * annotation (upstream `handleKeyUp`, index.tsx L2089–2107). The
+	 * was-holding-both / now-holding-both comparison means letting go of *one* of
+	 * cmd/shift fires the commit — releasing both in any order commits exactly once.
+	 */
+	#handleKeyUp(e: KeyboardEvent): void {
+		const wasHoldingBoth = this.#modifiersHeld.cmd && this.#modifiersHeld.shift;
+
+		if (e.key === 'Meta') this.#modifiersHeld.cmd = false;
+		if (e.key === 'Shift') this.#modifiersHeld.shift = false;
+
+		const nowHoldingBoth = this.#modifiersHeld.cmd && this.#modifiersHeld.shift;
+
+		if (wasHoldingBoth && !nowHoldingBoth && this.pendingMultiSelectElements.length > 0) {
+			this.#createMultiSelectPendingAnnotation();
+		}
+	}
+
+	/**
+	 * Reset modifier tracking and clear the set when the window loses focus (e.g.
+	 * cmd+tab away), so a stale half-built set can't survive an app switch. Port of
+	 * upstream's `handleBlur` (index.tsx L2110–2113).
+	 */
+	#handleBlur(): void {
+		this.#modifiersHeld = { cmd: false, shift: false };
+		this.pendingMultiSelectElements = [];
+	}
+
+	/**
+	 * Discard the open cmd+shift+click set without committing — wired to the
+	 * toolbar's Escape handler (upstream L3390–3394). No-op when the set is empty.
+	 */
+	clearMultiSelect(): void {
+		this.pendingMultiSelectElements = [];
+	}
+
+	/**
+	 * Commit the pending cmd+shift+click set as one pending annotation. Port of
+	 * `createMultiSelectPendingAnnotation` (index.tsx L1663–1767). A single element
+	 * degrades to a regular (non-multi-select) annotation with no
+	 * `elementBoundingBoxes` (L1677–1704); two or more produce per-element
+	 * `elementBoundingBoxes` in document coords, the `"N elements: …[ +M more]"`
+	 * name (first five), position from the *last* clicked element, and forensic
+	 * fields from the *first*. Always clears the set + hover afterward.
+	 */
+	#createMultiSelectPendingAnnotation(): void {
+		const items = this.pendingMultiSelectElements;
+		if (items.length === 0) return;
+
+		const firstItem = items[0];
+		const firstEl = firstItem.element;
+		const isMulti = items.length > 1;
+
+		// Fresh rects for all elements — positions may have shifted since select time.
+		const freshRects = items.map((item) => item.element.getBoundingClientRect());
+
+		if (!isMulti) {
+			// Single element — treat as a regular annotation (not multi-select), so it
+			// degrades exactly like a plain click (upstream L1676–1703).
+			const rect = freshRects[0];
+			const isFixed = isElementFixed(firstEl);
+
+			this.#options.onPick({
+				x: (rect.left / window.innerWidth) * 100,
+				y: isFixed ? rect.top : rect.top + window.scrollY,
+				clientY: rect.top,
+				element: firstItem.name,
+				elementPath: firstItem.path,
+				boundingBox: {
+					x: rect.left,
+					y: isFixed ? rect.top : rect.top + window.scrollY,
+					width: rect.width,
+					height: rect.height
+				},
+				isFixed,
+				fullPath: getFullElementPath(firstEl),
+				accessibility: getAccessibilityInfo(firstEl),
+				computedStyles: getForensicComputedStyles(firstEl),
+				computedStylesObj: getDetailedComputedStyles(firstEl),
+				nearbyElements: getNearbyElements(firstEl),
+				cssClasses: getElementClasses(firstEl),
+				nearbyText: getNearbyText(firstEl),
+				// DIVERGENCE(upstream): `reactComponents`/`detectSourceFile` (L1701–1702)
+				// are React-fiber-bound and unported — stay undefined (Phase 7).
+				reactComponents: undefined,
+				sourceFile: undefined,
+				targetElement: firstEl
+			});
+		} else {
+			// Multiple elements — a multi-select annotation (upstream L1705–1762).
+			const bounds = {
+				left: Math.min(...freshRects.map((r) => r.left)),
+				top: Math.min(...freshRects.map((r) => r.top)),
+				right: Math.max(...freshRects.map((r) => r.right)),
+				bottom: Math.max(...freshRects.map((r) => r.bottom))
+			};
+
+			const names = items
+				.slice(0, 5)
+				.map((item) => item.name)
+				.join(', ');
+			const suffix = items.length > 5 ? ` +${items.length - 5} more` : '';
+
+			const elementBoundingBoxes = freshRects.map((rect) => ({
+				x: rect.left,
+				y: rect.top + window.scrollY,
+				width: rect.width,
+				height: rect.height
+			}));
+
+			// Position the marker near the last selected element (most recent click).
+			const lastItem = items[items.length - 1];
+			const lastEl = lastItem.element;
+			const lastRect = freshRects[freshRects.length - 1];
+			const lastCenterX = lastRect.left + lastRect.width / 2;
+			const lastCenterY = lastRect.top + lastRect.height / 2;
+			const lastIsFixed = isElementFixed(lastEl);
+
+			this.#options.onPick({
+				x: (lastCenterX / window.innerWidth) * 100,
+				y: lastIsFixed ? lastCenterY : lastCenterY + window.scrollY,
+				clientY: lastCenterY,
+				element: `${items.length} elements: ${names}${suffix}`,
+				elementPath: 'multi-select',
+				boundingBox: {
+					x: bounds.left,
+					y: bounds.top + window.scrollY,
+					width: bounds.right - bounds.left,
+					height: bounds.bottom - bounds.top
+				},
+				isMultiSelect: true,
+				isFixed: lastIsFixed,
+				elementBoundingBoxes,
+				multiSelectElements: items.map((item) => item.element),
+				targetElement: lastEl, // anchor marker/popup to the last clicked element
+				// Forensic data from the first element (upstream L1754–1761).
+				fullPath: getFullElementPath(firstEl),
+				accessibility: getAccessibilityInfo(firstEl),
+				computedStyles: getForensicComputedStyles(firstEl),
+				computedStylesObj: getDetailedComputedStyles(firstEl),
+				nearbyElements: getNearbyElements(firstEl),
+				cssClasses: getElementClasses(firstEl),
+				nearbyText: getNearbyText(firstEl),
+				// DIVERGENCE(upstream): `detectSourceFile` (L1761) unported (Phase 7).
+				sourceFile: undefined
+			});
+		}
+
+		this.pendingMultiSelectElements = [];
 		this.hoverInfo = null;
 	}
 

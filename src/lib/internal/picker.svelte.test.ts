@@ -56,6 +56,23 @@ function fire(
 	target.dispatchEvent(new MouseEvent(type, { bubbles: true, clientX, clientY }));
 }
 
+/** Dispatch a cmd+shift mouse event (the multi-select toggle modifier combo). */
+function fireCmdShift(
+	type: 'click',
+	clientX: number,
+	clientY: number,
+	target: EventTarget = document.body
+) {
+	target.dispatchEvent(
+		new MouseEvent(type, { bubbles: true, clientX, clientY, metaKey: true, shiftKey: true })
+	);
+}
+
+/** Dispatch a bubbling keyboard event on `document`. */
+function fireKey(type: 'keydown' | 'keyup', key: string) {
+	document.dispatchEvent(new KeyboardEvent(type, { bubbles: true, key }));
+}
+
 /**
  * jsdom has no layout, so `getBoundingClientRect` returns all-zeros (which the
  * drag size filters reject). Stub a fixed rect so an element can match a drag box.
@@ -599,5 +616,185 @@ describe('PickerController — multi-select drag', () => {
 		fire('mousedown', 100, 100);
 		fire('mousemove', 200, 200);
 		expect(controller.isDragging).toBe(false);
+	});
+});
+
+describe('PickerController — cmd+shift+click multi-select', () => {
+	it('adds the clicked element to the pending set on cmd+shift+click', () => {
+		const { controller } = makeController();
+		controller.activate();
+
+		const button = appendEl('button', (el) => (el.textContent = 'Save'));
+		hitTestReturns(button);
+		fireCmdShift('click', 100, 100, button);
+
+		expect(controller.pendingMultiSelectElements).toHaveLength(1);
+		expect(controller.pendingMultiSelectElements[0]).toMatchObject({
+			element: button,
+			name: 'button "Save"'
+		});
+	});
+
+	it('toggles an already-selected element back out of the set', () => {
+		const { controller } = makeController();
+		controller.activate();
+
+		const button = appendEl('button', (el) => (el.textContent = 'Save'));
+		hitTestReturns(button);
+
+		fireCmdShift('click', 100, 100, button);
+		expect(controller.pendingMultiSelectElements).toHaveLength(1);
+
+		// Clicking the same element again removes it (upstream toggle).
+		fireCmdShift('click', 100, 100, button);
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+	});
+
+	it('does not create a pending annotation on the cmd+shift+click itself', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		const button = appendEl('button');
+		hitTestReturns(button);
+		fireCmdShift('click', 100, 100, button);
+
+		expect(onPick).not.toHaveBeenCalled();
+	});
+
+	it('commits a multi-select annotation when the modifiers are released with ≥ 2 elements', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		const save = appendEl('button', (el) => (el.textContent = 'Save'));
+		stubRect(save, { left: 100, top: 100, width: 80, height: 40 });
+		const docs = appendEl('a', (el) => {
+			el.textContent = 'Docs';
+			el.setAttribute('href', '/docs');
+		});
+		stubRect(docs, { left: 220, top: 130, width: 60, height: 30 });
+
+		// Hold both modifiers, toggle in both elements, then release one.
+		fireKey('keydown', 'Meta');
+		fireKey('keydown', 'Shift');
+		hitTestReturns(save);
+		fireCmdShift('click', 140, 120, save);
+		hitTestReturns(docs);
+		fireCmdShift('click', 250, 145, docs);
+		fireKey('keyup', 'Meta');
+
+		expect(onPick).toHaveBeenCalledTimes(1);
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.element).toBe('2 elements: button "Save", link "Docs"');
+		expect(pending.elementPath).toBe('multi-select');
+		expect(pending.isMultiSelect).toBe(true);
+		// One bounding box per element, in document coords (scrollY 0 in jsdom).
+		expect(pending.elementBoundingBoxes).toEqual([
+			{ x: 100, y: 100, width: 80, height: 40 },
+			{ x: 220, y: 130, width: 60, height: 30 }
+		]);
+		// Combined box is the union of both rects:
+		// left 100, top 100, right max(180,280)=280, bottom max(140,160)=160.
+		expect(pending.boundingBox).toEqual({ x: 100, y: 100, width: 180, height: 60 });
+		// Live refs kept for position tracking; anchored to the last clicked element.
+		expect(pending.multiSelectElements).toEqual([save, docs]);
+		expect(pending.targetElement).toBe(docs);
+		// The set + hover are cleared after committing.
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+	});
+
+	it('degrades a single-element set to a regular annotation on release', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		const button = appendEl('button', (el) => (el.textContent = 'Only'));
+		stubRect(button, { left: 50, top: 60, width: 100, height: 40 });
+
+		fireKey('keydown', 'Meta');
+		fireKey('keydown', 'Shift');
+		hitTestReturns(button);
+		fireCmdShift('click', 100, 80, button);
+		fireKey('keyup', 'Shift');
+
+		expect(onPick).toHaveBeenCalledTimes(1);
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.element).toBe('button "Only"');
+		expect(pending.isMultiSelect).toBeUndefined();
+		expect(pending.elementBoundingBoxes).toBeUndefined();
+		expect(pending.multiSelectElements).toBeUndefined();
+		expect(pending.targetElement).toBe(button);
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+	});
+
+	it('does not commit on modifier release when the set is empty', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		fireKey('keydown', 'Meta');
+		fireKey('keydown', 'Shift');
+		fireKey('keyup', 'Meta');
+
+		expect(onPick).not.toHaveBeenCalled();
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+	});
+
+	it('clearMultiSelect() discards the set without committing (Escape)', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		const button = appendEl('button');
+		hitTestReturns(button);
+		fireCmdShift('click', 100, 100, button);
+		expect(controller.pendingMultiSelectElements).toHaveLength(1);
+
+		controller.clearMultiSelect();
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+		expect(onPick).not.toHaveBeenCalled();
+	});
+
+	it('clears the set when the window loses focus (cmd+tab away)', () => {
+		const { controller } = makeController();
+		controller.activate();
+
+		const button = appendEl('button');
+		hitTestReturns(button);
+		fireKey('keydown', 'Meta');
+		fireKey('keydown', 'Shift');
+		fireCmdShift('click', 100, 100, button);
+		expect(controller.pendingMultiSelectElements).toHaveLength(1);
+
+		window.dispatchEvent(new Event('blur'));
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+	});
+
+	it('does not toggle while an annotation is pending', () => {
+		const { controller, onPick } = makeController({ isPending: () => true });
+		controller.activate();
+
+		const button = appendEl('button');
+		hitTestReturns(button);
+		fireCmdShift('click', 100, 100, button);
+
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+		expect(onPick).not.toHaveBeenCalled();
+	});
+
+	it('clears the set and stops tracking modifiers on deactivate', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		const button = appendEl('button');
+		hitTestReturns(button);
+		fireKey('keydown', 'Meta');
+		fireKey('keydown', 'Shift');
+		fireCmdShift('click', 100, 100, button);
+		expect(controller.pendingMultiSelectElements).toHaveLength(1);
+
+		controller.deactivate();
+		expect(controller.pendingMultiSelectElements).toHaveLength(0);
+
+		// After deactivate the keyup listener is gone — a release can't commit.
+		controller.activate();
+		fireKey('keyup', 'Meta');
+		expect(onPick).not.toHaveBeenCalled();
 	});
 });

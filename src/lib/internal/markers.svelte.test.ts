@@ -375,3 +375,110 @@ describe('MarkersController — marker hover re-resolution', () => {
 		expect(controller.hoveredTargetElements).toEqual([]);
 	});
 });
+
+describe('MarkersController — edit tracking re-resolution', () => {
+	function hitTestReturns(el: Element | null) {
+		(document as unknown as { elementFromPoint: () => Element | null }).elementFromPoint = vi
+			.fn()
+			.mockReturnValue(el);
+	}
+
+	function stubRect(el: HTMLElement, width: number, height: number) {
+		el.getBoundingClientRect = () =>
+			({ x: 0, y: 0, top: 0, left: 0, right: width, bottom: height, width, height }) as DOMRect;
+	}
+
+	it('clears editing + hover state when passed null', () => {
+		const { controller } = makeController();
+		controller.hoveredMarkerId = 'x';
+		controller.editingTargetElement = document.createElement('div');
+		controller.editingTargetElements = [document.createElement('div')];
+
+		controller.handleEditTracking(null);
+
+		expect(controller.editingTargetElement).toBeNull();
+		expect(controller.editingTargetElements).toEqual([]);
+		expect(controller.hoveredMarkerId).toBeNull();
+	});
+
+	it('clears any active hover highlight when entering edit', () => {
+		const el = document.createElement('div');
+		document.body.appendChild(el);
+		stubRect(el, 100, 40);
+		hitTestReturns(el);
+
+		const { controller } = makeController();
+		controller.hoveredMarkerId = 'a';
+		controller.hoveredTargetElement = el;
+		controller.hoveredTargetElements = [el];
+
+		controller.handleEditTracking(
+			makeAnnotation('a', { boundingBox: { x: 0, y: 0, width: 100, height: 40 } })
+		);
+
+		expect(controller.hoveredMarkerId).toBeNull();
+		expect(controller.hoveredTargetElement).toBeNull();
+		expect(controller.hoveredTargetElements).toEqual([]);
+	});
+
+	it('re-resolves a single-select element whose size matches the stored box', () => {
+		const el = document.createElement('div');
+		document.body.appendChild(el);
+		stubRect(el, 100, 40);
+		hitTestReturns(el);
+
+		const { controller } = makeController();
+		controller.handleEditTracking(
+			makeAnnotation('a', { boundingBox: { x: 0, y: 0, width: 100, height: 40 } })
+		);
+
+		expect(controller.editingTargetElement).toBe(el);
+		expect(controller.editingTargetElements).toEqual([]);
+	});
+
+	it('rejects a found element much smaller than the stored box (a child)', () => {
+		const child = document.createElement('span');
+		document.body.appendChild(child);
+		stubRect(child, 20, 10); // < 50% of the stored 100x40 box
+		hitTestReturns(child);
+
+		const { controller } = makeController();
+		controller.handleEditTracking(
+			makeAnnotation('a', { boundingBox: { x: 0, y: 0, width: 100, height: 40 } })
+		);
+		expect(controller.editingTargetElement).toBeNull();
+	});
+
+	it('re-resolves multi-select boxes via deepElementFromPoint (one per box)', () => {
+		Object.defineProperty(window, 'scrollY', { value: 0, configurable: true });
+		const a = document.createElement('div');
+		const b = document.createElement('div');
+		document.body.append(a, b);
+		const efp = vi.fn().mockReturnValueOnce(a).mockReturnValueOnce(b);
+		(document as unknown as { elementFromPoint: typeof efp }).elementFromPoint = efp;
+
+		const { controller } = makeController();
+		controller.handleEditTracking(
+			makeAnnotation('a', {
+				elementBoundingBoxes: [
+					{ x: 0, y: 0, width: 50, height: 50 },
+					{ x: 100, y: 100, width: 50, height: 50 }
+				]
+			})
+		);
+
+		expect(controller.editingTargetElements).toEqual([a, b]);
+		expect(controller.editingTargetElement).toBeNull();
+		// One hit-test per stored box, at each box centre.
+		expect(efp).toHaveBeenCalledWith(25, 25);
+		expect(efp).toHaveBeenCalledWith(125, 125);
+	});
+
+	it('clears editing targets when the annotation has no bounding box', () => {
+		hitTestReturns(null);
+		const { controller } = makeController();
+		controller.handleEditTracking(makeAnnotation('a'));
+		expect(controller.editingTargetElement).toBeNull();
+		expect(controller.editingTargetElements).toEqual([]);
+	});
+});
