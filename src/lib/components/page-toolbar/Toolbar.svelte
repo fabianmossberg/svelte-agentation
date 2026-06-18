@@ -169,6 +169,10 @@
 	let portalWrapper = $state<HTMLDivElement>();
 	let pendingPopup = $state<{ shake: () => void }>();
 	let editPopup = $state<{ shake: () => void }>();
+	// Multi-select drag overlay nodes (mounted under `{#if picker.isDragging}`).
+	// Forwarded to the picker so it can write geometry directly (upstream's refs).
+	let dragRectEl = $state<HTMLDivElement>();
+	let highlightsContainerEl = $state<HTMLDivElement>();
 
 	// --- Derived -----------------------------------------------------------------
 	const isActive = $derived(picker.isActive);
@@ -198,6 +202,16 @@
 	// the controller reproduces upstream's visibility `useEffect` (L650–679).
 	$effect(() => {
 		markers.setVisible(shouldShowMarkers);
+	});
+
+	// Hand the picker its drag-overlay DOM nodes as they mount/unmount (upstream
+	// keeps these as refs assigned by the conditional JSX, L4695–4698). The picker
+	// writes geometry directly to them during a drag.
+	$effect(() => {
+		picker.setDragRect(dragRectEl ?? null);
+	});
+	$effect(() => {
+		picker.setHighlightsContainer(highlightsContainerEl ?? null);
 	});
 
 	// Reset-on-deactivate: when feedback mode turns off, unfreeze the page if it was
@@ -916,9 +930,9 @@ and `-root` is what the picker's cursor injection excludes. -->
 				data-feedback-toolbar
 				style:z-index={annotations.pending || annotations.editing ? 99999 : undefined}
 			>
-				<!-- Hover highlight (upstream L4279–4295). DIVERGENCE: `isDragging`
-				(multi-select drag) is Phase 3 and always false. -->
-				{#if picker.hoverInfo?.rect && !annotations.pending && !markers.isScrolling}
+				<!-- Hover highlight (upstream L4279–4295). Suppressed during a
+				multi-select drag (upstream L4283, `!isDragging`). -->
+				{#if picker.hoverInfo?.rect && !annotations.pending && !markers.isScrolling && !picker.isDragging}
 					{@const r = picker.hoverInfo.rect}
 					<div
 						class="hoverHighlight enter"
@@ -927,6 +941,17 @@ and `-root` is what the picker's cursor injection excludes. -->
 						style:width={`${r.width}px`}
 						style:height={`${r.height}px`}
 					></div>
+				{/if}
+
+				<!-- Multi-select drag rectangle + live highlights (upstream L4692–4701).
+				All geometry is written imperatively by the picker controller (direct
+				DOM, no reactive state) for 60fps; this only mounts the containers and
+				hands them to the controller. The highlight child divs are created
+				inside `.highlightsContainer` by the controller and styled via the
+				scoped `:global(.selectedElementHighlight)` rule below. -->
+				{#if picker.isDragging}
+					<div bind:this={dragRectEl} class="dragSelection"></div>
+					<div bind:this={highlightsContainerEl} class="highlightsContainer"></div>
 				{/if}
 
 				<!-- Marker hover outline (upstream L4329–4412). DIVERGENCE: the
@@ -959,8 +984,9 @@ and `-root` is what the picker's cursor injection excludes. -->
 				{/if}
 
 				<!-- Hover tooltip (upstream L4414–4438). DIVERGENCE: `reactComponents`
-				is unpopulated (Phase 7), so the react-path line never renders. -->
-				{#if picker.hoverInfo && !annotations.pending && !markers.isScrolling}
+				is unpopulated (Phase 7), so the react-path line never renders.
+				Suppressed during a multi-select drag (upstream L4415, `!isDragging`). -->
+				{#if picker.hoverInfo && !annotations.pending && !markers.isScrolling && !picker.isDragging}
 					<div
 						class="hoverTooltip enter"
 						style:left={`${Math.max(8, Math.min(picker.hoverPosition.x, window.innerWidth - 100))}px`}
@@ -1585,6 +1611,45 @@ control-button server states (`data-error`/`data-auto-sync`/`data-failed`/
 	.multiSelectOutline.enter,
 	.singleSelectOutline.enter {
 		animation: fadeIn 0.15s ease-out forwards;
+	}
+
+	/* Multi-select drag rectangle (upstream styles.module.scss `.dragSelection`,
+	   L2079). Geometry is written via `transform`/`width`/`height` by the picker. */
+	.dragSelection {
+		position: fixed;
+		top: 0;
+		left: 0;
+		border: 2px solid color-mix(in srgb, var(--agentation-color-green) 60%, transparent);
+		border-radius: 4px;
+		background-color: color-mix(in srgb, var(--agentation-color-green) 8%, transparent);
+		pointer-events: none;
+		z-index: 99997;
+		will-change: transform, width, height;
+		contain: layout style;
+	}
+
+	/* Live-highlight container (upstream `.highlightsContainer`, L2112). */
+	.highlightsContainer {
+		position: fixed;
+		top: 0;
+		left: 0;
+		pointer-events: none;
+		z-index: 99996;
+	}
+
+	/* Each live highlight is created imperatively by the picker controller, so the
+	   div never gets this component's scope hash — target it with a scoped-ancestor
+	   + `:global(...)` rule (upstream `.selectedElementHighlight`, L2121). */
+	.highlightsContainer > :global(.selectedElementHighlight) {
+		position: fixed;
+		top: 0;
+		left: 0;
+		border: 2px solid color-mix(in srgb, var(--agentation-color-green) 50%, transparent);
+		border-radius: 4px;
+		background: color-mix(in srgb, var(--agentation-color-green) 6%, transparent);
+		pointer-events: none;
+		will-change: transform, width, height;
+		contain: layout style;
 	}
 
 	.hoverTooltip {
