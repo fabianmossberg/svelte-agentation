@@ -156,7 +156,9 @@ export class AnnotationsController {
 	/**
 	 * Commit the pending annotation with `comment`. No-op if nothing is pending.
 	 * Mirrors upstream `addAnnotation` (index.tsx L2591–2629, L2641) minus the
-	 * animation, selection-clearing, and server-sync side effects.
+	 * animation and server-sync side effects. Clears the browser text selection
+	 * on save (upstream L2651), so the text captured into `selectedText` stops
+	 * being visually selected once it lives on the annotation.
 	 */
 	add(comment: string): void {
 		const pending = this.pending;
@@ -189,6 +191,13 @@ export class AnnotationsController {
 		this.pending = null;
 		this.#persist();
 		this.#options.onAnnotationAdd?.(newAnnotation);
+
+		// Clear the browser text selection the picker captured into `selectedText`
+		// (upstream `window.getSelection()?.removeAllRanges()`, index.tsx L2651).
+		// SSR-safe: no-op without `window`.
+		if (typeof window !== 'undefined') {
+			window.getSelection()?.removeAllRanges();
+		}
 	}
 
 	/**

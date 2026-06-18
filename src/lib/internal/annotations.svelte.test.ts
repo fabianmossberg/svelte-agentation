@@ -100,6 +100,21 @@ describe('AnnotationsController — add', () => {
 		expect(onAnnotationAdd).toHaveBeenCalledTimes(1);
 		expect(onAnnotationAdd.mock.calls[0][0]).toMatchObject({ id: 'id-1', comment: 'hi' });
 	});
+
+	it('clears the browser text selection on save (upstream removeAllRanges, L2651)', () => {
+		const removeAllRanges = vi.fn();
+		const getSelection = vi.spyOn(window, 'getSelection').mockReturnValue({
+			removeAllRanges
+		} as unknown as Selection);
+
+		const c = makeController();
+		c.pending = makePending({ selectedText: 'quoted bit' });
+		c.add('with a selection');
+
+		expect(getSelection).toHaveBeenCalledTimes(1);
+		expect(removeAllRanges).toHaveBeenCalledTimes(1);
+		getSelection.mockRestore();
+	});
 });
 
 describe('AnnotationsController — cancelPending', () => {

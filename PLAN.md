@@ -123,7 +123,9 @@ matches upstream behavior side-by-side, with annotations surviving reload.
       (`isMultiSelect`, `elementBoundingBoxes`). Drag rectangle (#29) and
       cmd+shift+click per-element selection with live highlight + edit
       re-resolution (#30).
-- [ ] Text-selection annotations (`selectedText`).
+- [x] Text-selection annotations (`selectedText`). Capture, popup quote, and
+      compat output landed with the picker/popup ports (#29, Phase 1); the
+      save-time selection clear (`removeAllRanges`) lands in #31.
 - [ ] Draw mode: strokes + screenshot composition (`drawingIndex`,
       `utils/screenshot`).
 - [ ] Detail-level settings (compact → forensic) in the settings panel,
