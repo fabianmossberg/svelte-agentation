@@ -197,6 +197,13 @@
 	<p>© 2026 Meridian Logistics. Demo page for the svelte-agentation playground.</p>
 </footer>
 
+<!-- A position:fixed element, kept deliberately so the toolbar's fixed-element
+handling (annotations on fixed targets must re-anchor to the viewport, not the
+scrolled document — picker `isElementFixed`, markers controller fixed layer,
+stored `isFixed`) has a live target to annotate in the playground. Bottom-left,
+clear of the toolbar's bottom-right corner. See PLAN.md Phase 2 / issue #28. -->
+<aside class="fixed-help" aria-label="Support">Need help? Chat with us</aside>
+
 <!-- The Agentation toolbar. It mounts its own UI into document.body, so its
 position in this markup is irrelevant — placed last by convention. -->
 <Agentation />
@@ -452,5 +459,22 @@ position in this markup is irrelevant — placed last by convention. -->
 	}
 	.site-footer p {
 		margin: 0;
+	}
+
+	/* Fixed support chip — a position:fixed target for the toolbar's
+	   fixed-element annotation handling (see the markup comment). Bottom-left,
+	   clear of the toolbar at bottom-right. */
+	.fixed-help {
+		position: fixed;
+		left: 1.25rem;
+		bottom: 1.25rem;
+		z-index: 10;
+		padding: 0.6rem 0.95rem;
+		background: #0f172a;
+		color: #fff;
+		border-radius: 999px;
+		font-size: 0.85rem;
+		font-weight: 600;
+		box-shadow: 0 6px 20px rgba(15, 23, 42, 0.25);
 	}
 </style>
