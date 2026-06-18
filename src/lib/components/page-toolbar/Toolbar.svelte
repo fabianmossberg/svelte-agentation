@@ -547,21 +547,28 @@
 		picker.deactivate();
 		annotations.cancelPending();
 		annotations.cancelEdit();
+		markers.handleEditTracking(null);
 		showSettings = false;
 	}
 
 	// Keyboard shortcuts (upstream `handleKeyDown`, L3367–3482). Installed once in
 	// `onMount`; reads live component state. The typing guard (L3368–3373) blocks the
 	// single-key shortcuts inside inputs/textareas/contenteditable.
-	// DIVERGENCE(upstream): the Escape cascade's design-mode (L3377–3384), draw-mode
-	// (L3386–3389), and multi-select (L3391–3394) branches are Phases 6/3; the `L`
-	// layout (L3426–3437) and `S` send (L3469–3481) shortcuts stay unwired (Phases 6/4).
+	// DIVERGENCE(upstream): the Escape cascade's design-mode (L3377–3384) and
+	// draw-mode (L3386–3389) branches are Phase 6; the `L` layout (L3426–3437) and
+	// `S` send (L3469–3481) shortcuts stay unwired (Phases 6/4).
 	function handleKeyDown(e: KeyboardEvent) {
 		const target = e.target as HTMLElement;
 		const isTyping =
 			target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
 
 		if (e.key === 'Escape') {
+			// Clear an open cmd+shift+click set first, without deactivating (upstream
+			// L3390–3394).
+			if (picker.pendingMultiSelectElements.length > 0) {
+				picker.clearMultiSelect();
+				return;
+			}
 			if (annotations.pending) {
 				// Let the popup handle Escape — its textarea keydown cancels + stops
 				// propagation, so this document handler is a no-op while pending (L3395–3396).
@@ -653,10 +660,32 @@
 	// Marker interaction wiring (upstream L4204–4215).
 	function onMarkerClick(a: Annotation) {
 		if (settings.settings.markerClickBehavior === 'delete') markers.startDelete(a.id);
-		else annotations.startEdit(a);
+		else beginEdit(a);
 	}
 	function onMarkerHoverEnter(a: Annotation) {
 		if (!markers.markersExiting) markers.handleMarkerHover(a);
+	}
+
+	// Open an annotation for editing. Upstream's `startEditAnnotation` both opens the
+	// editor (annotations controller) and re-resolves the live editing element(s) for
+	// outline tracking (markers controller, L1884–1923) — keep the two in lockstep.
+	function beginEdit(a: Annotation) {
+		annotations.startEdit(a);
+		markers.handleEditTracking(a);
+	}
+	// Closing the editor (save/cancel/delete) clears the editing element tracking so
+	// no stale outline lingers (upstream clears `editingTargetElement(s)` on each path).
+	function saveEdit(text: string) {
+		annotations.update(text);
+		markers.handleEditTracking(null);
+	}
+	function cancelEdit() {
+		annotations.cancelEdit();
+		markers.handleEditTracking(null);
+	}
+	function deleteEditing(id: string) {
+		markers.startDelete(id);
+		markers.handleEditTracking(null);
 	}
 </script>
 
@@ -880,7 +909,7 @@ and `-root` is what the picker's cursor injection excludes. -->
 						onHoverEnter={onMarkerHoverEnter}
 						onHoverLeave={() => markers.handleMarkerHover(null)}
 						onClick={onMarkerClick}
-						onContextMenu={(a) => annotations.startEdit(a)}
+						onContextMenu={(a) => beginEdit(a)}
 					/>
 				{/each}
 				{#if !markers.markersExiting}
@@ -912,7 +941,7 @@ and `-root` is what the picker's cursor injection excludes. -->
 						onHoverEnter={onMarkerHoverEnter}
 						onHoverLeave={() => markers.handleMarkerHover(null)}
 						onClick={onMarkerClick}
-						onContextMenu={(a) => annotations.startEdit(a)}
+						onContextMenu={(a) => beginEdit(a)}
 					/>
 				{/each}
 				{#if !markers.markersExiting}
@@ -943,6 +972,27 @@ and `-root` is what the picker's cursor injection excludes. -->
 					></div>
 				{/if}
 
+				<!-- Cmd+shift+click multi-select highlights, shown live while the set is
+				open (before the modifiers are released — upstream L4297–4327). Green once
+				2+ elements are selected, blue for a lone one. Each element is re-measured
+				per render so the outlines track layout changes; gone elements are skipped. -->
+				{#if picker.pendingMultiSelectElements.length > 0}
+					{@const isMulti = picker.pendingMultiSelectElements.length > 1}
+					{#each picker.pendingMultiSelectElements as item, i (i)}
+						{#if document.contains(item.element)}
+							{@const r = item.element.getBoundingClientRect()}
+							<div
+								class:multiSelectOutline={isMulti}
+								class:singleSelectOutline={!isMulti}
+								style:left={`${r.left}px`}
+								style:top={`${r.top}px`}
+								style:width={`${r.width}px`}
+								style:height={`${r.height}px`}
+							></div>
+						{/if}
+					{/each}
+				{/if}
+
 				<!-- Multi-select drag rectangle + live highlights (upstream L4692–4701).
 				All geometry is written imperatively by the picker controller (direct
 				DOM, no reactive state) for 60fps; this only mounts the containers and
@@ -954,11 +1004,39 @@ and `-root` is what the picker's cursor injection excludes. -->
 					<div bind:this={highlightsContainerEl} class="highlightsContainer"></div>
 				{/if}
 
-				<!-- Marker hover outline (upstream L4329–4412). DIVERGENCE: the
-				multi-select (`elementBoundingBoxes`) branch is Phase 3 — single only. -->
+				<!-- Marker hover outline (upstream L4329–4412). Three cases: a
+				cmd+shift+click annotation draws one box per element (live positions from
+				`hoveredTargetElements` when resolved, else the stored `elementBoundingBoxes`);
+				any other annotation draws a single box (live `hoveredTargetElement` else the
+				stored `boundingBox`), green for multi-select and blue otherwise. -->
 				{#if markers.hoveredMarkerId && !annotations.pending}
 					{@const ha = annotations.annotations.find((a) => a.id === markers.hoveredMarkerId)}
-					{#if ha?.boundingBox}
+					{#if ha?.elementBoundingBoxes?.length}
+						{#if markers.hoveredTargetElements.length > 0}
+							{#each markers.hoveredTargetElements as el, i (i)}
+								{#if document.contains(el)}
+									{@const r = el.getBoundingClientRect()}
+									<div
+										class="multiSelectOutline enter"
+										style:left={`${r.left}px`}
+										style:top={`${r.top}px`}
+										style:width={`${r.width}px`}
+										style:height={`${r.height}px`}
+									></div>
+								{/if}
+							{/each}
+						{:else}
+							{#each ha.elementBoundingBoxes as box, i (i)}
+								<div
+									class="multiSelectOutline enter"
+									style:left={`${box.x}px`}
+									style:top={`${box.y - markers.scrollY}px`}
+									style:width={`${box.width}px`}
+									style:height={`${box.height}px`}
+								></div>
+							{/each}
+						{/if}
+					{:else if ha?.boundingBox}
 						{@const live =
 							markers.hoveredTargetElement && document.contains(markers.hoveredTargetElement)
 								? markers.hoveredTargetElement.getBoundingClientRect()
@@ -996,13 +1074,28 @@ and `-root` is what the picker's cursor injection excludes. -->
 					</div>
 				{/if}
 
-				<!-- Pending annotation marker + popup (upstream L4440–4560). DIVERGENCE:
-				multi-select outlines (`multiSelectElements`) are Phase 3; the
-				`pendingExiting` outline-exit flag is dropped — the popup self-animates
-				its own exit before `onCancel` nulls the pending state. -->
+				<!-- Pending annotation marker + popup (upstream L4440–4560). A
+				cmd+shift+click pending carries `multiSelectElements` and draws one green
+				box per live element; otherwise a single box from the live `targetElement`,
+				falling back to the stored `boundingBox`. DIVERGENCE: the `pendingExiting`
+				outline-exit flag is dropped — the popup self-animates its own exit before
+				`onCancel` nulls the pending state. -->
 				{#if annotations.pending}
 					{@const p = annotations.pending}
-					{#if p.targetElement && document.contains(p.targetElement)}
+					{#if p.multiSelectElements?.length}
+						{#each p.multiSelectElements as el, i (i)}
+							{#if document.contains(el)}
+								{@const r = el.getBoundingClientRect()}
+								<div
+									class="multiSelectOutline enter"
+									style:left={`${r.left}px`}
+									style:top={`${r.top}px`}
+									style:width={`${r.width}px`}
+									style:height={`${r.height}px`}
+								></div>
+							{/if}
+						{/each}
+					{:else if p.targetElement && document.contains(p.targetElement)}
 						{@const r = p.targetElement.getBoundingClientRect()}
 						<div
 							class="singleSelectOutline enter"
@@ -1052,21 +1145,64 @@ and `-root` is what the picker's cursor injection excludes. -->
 					/>
 				{/if}
 
-				<!-- Edit annotation popup (upstream L4562–4690). DIVERGENCE: live
-				editing-element tracking (`editingTargetElement`) is out of scope, so the
-				outline uses the stored bounding box. -->
+				<!-- Edit annotation popup (upstream L4562–4690). Mirrors the hover-outline
+				cases: a cmd+shift+click annotation draws one box per element (live
+				`editingTargetElements` else stored `elementBoundingBoxes`); any other
+				draws a single box (live `editingTargetElement` else stored `boundingBox`),
+				resolved by `beginEdit` → `markers.handleEditTracking`. -->
 				{#if annotations.editing}
 					{@const ea = annotations.editing}
-					{#if ea.boundingBox}
-						<div
-							class="enter"
-							class:multiSelectOutline={ea.isMultiSelect}
-							class:singleSelectOutline={!ea.isMultiSelect}
-							style:left={`${ea.boundingBox.x}px`}
-							style:top={`${ea.isFixed ? ea.boundingBox.y : ea.boundingBox.y - markers.scrollY}px`}
-							style:width={`${ea.boundingBox.width}px`}
-							style:height={`${ea.boundingBox.height}px`}
-						></div>
+					{#if ea.elementBoundingBoxes?.length}
+						{#if markers.editingTargetElements.length > 0}
+							{#each markers.editingTargetElements as el, i (i)}
+								{#if document.contains(el)}
+									{@const r = el.getBoundingClientRect()}
+									<div
+										class="multiSelectOutline enter"
+										style:left={`${r.left}px`}
+										style:top={`${r.top}px`}
+										style:width={`${r.width}px`}
+										style:height={`${r.height}px`}
+									></div>
+								{/if}
+							{/each}
+						{:else}
+							{#each ea.elementBoundingBoxes as box, i (i)}
+								<div
+									class="multiSelectOutline enter"
+									style:left={`${box.x}px`}
+									style:top={`${box.y - markers.scrollY}px`}
+									style:width={`${box.width}px`}
+									style:height={`${box.height}px`}
+								></div>
+							{/each}
+						{/if}
+					{:else}
+						{@const live =
+							markers.editingTargetElement && document.contains(markers.editingTargetElement)
+								? markers.editingTargetElement.getBoundingClientRect()
+								: null}
+						{@const bb = live
+							? { x: live.left, y: live.top, width: live.width, height: live.height }
+							: ea.boundingBox
+								? {
+										x: ea.boundingBox.x,
+										y: ea.isFixed ? ea.boundingBox.y : ea.boundingBox.y - markers.scrollY,
+										width: ea.boundingBox.width,
+										height: ea.boundingBox.height
+									}
+								: null}
+						{#if bb}
+							<div
+								class="enter"
+								class:multiSelectOutline={ea.isMultiSelect}
+								class:singleSelectOutline={!ea.isMultiSelect}
+								style:left={`${bb.x}px`}
+								style:top={`${bb.y}px`}
+								style:width={`${bb.width}px`}
+								style:height={`${bb.height}px`}
+							></div>
+						{/if}
 					{/if}
 
 					{@const markerY = ea.isFixed ? ea.y : ea.y - markers.scrollY}
@@ -1078,9 +1214,9 @@ and `-root` is what the picker's cursor injection excludes. -->
 						placeholder="Edit your feedback..."
 						initialValue={ea.comment}
 						submitLabel="Save"
-						onSubmit={(text) => annotations.update(text)}
-						onCancel={() => annotations.cancelEdit()}
-						onDelete={() => markers.startDelete(ea.id)}
+						onSubmit={(text) => saveEdit(text)}
+						onCancel={() => cancelEdit()}
+						onDelete={() => deleteEditing(ea.id)}
 						lightMode={!settings.isDarkMode}
 						accentColor={ea.isMultiSelect
 							? 'var(--agentation-color-green)'

@@ -119,8 +119,10 @@ matches upstream behavior side-by-side, with annotations surviving reload.
 
 ## Phase 3 — Advanced annotation features
 
-- [ ] Multi-select: drag rectangle → multiple elements per annotation
-      (`isMultiSelect`, `elementBoundingBoxes`).
+- [x] Multi-select: drag rectangle → multiple elements per annotation
+      (`isMultiSelect`, `elementBoundingBoxes`). Drag rectangle (#29) and
+      cmd+shift+click per-element selection with live highlight + edit
+      re-resolution (#30).
 - [ ] Text-selection annotations (`selectedText`).
 - [ ] Draw mode: strokes + screenshot composition (`drawingIndex`,
       `utils/screenshot`).

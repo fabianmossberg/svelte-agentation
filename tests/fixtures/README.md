@@ -9,7 +9,7 @@ made executable.
 
 | Path | What |
 |---|---|
-| `annotations.json` | The committed `Annotation[]` inputs: an empty array, a minimal annotation, and a maximal set exercising every field the generator reads (selectedText under/over the 30-char compact cutoff, boundingBox, nearbyText with/without selectedText to hit the suppression rule, cssClasses, computedStyles, accessibility, nearbyElements, fullPath, isMultiSelect, and the React-only sourceFile/reactComponents). |
+| `annotations.json` | The committed `Annotation[]` inputs: an empty array, a minimal annotation, a maximal set exercising every field the generator reads (selectedText under/over the 30-char compact cutoff, boundingBox, nearbyText with/without selectedText to hit the suppression rule, cssClasses, computedStyles, accessibility, nearbyElements, fullPath, isMultiSelect, and the React-only sourceFile/reactComponents), a `drag-multiselect` case (drag-rectangle group + area selection), and a `cmdshift-multiselect` case (a cmd+shift+click annotation carrying `elementBoundingBoxes` — a field the generator never reads, proving it serializes identically regardless). |
 | `output/<case>.<level>.md` | Generated markdown — one file per case × detail level. Each carries a header comment and the never-hand-edit rule. |
 
 ## Never hand-edit these (CONTRIBUTING.md)

@@ -27,6 +27,10 @@
 //   - scroll tracking (L1197–1219) → `start()`/`destroy()` (listener added
 //     once, passive, removed on teardown) + `#scrollTimer` debounce.
 //   - `handleMarkerHover` (L2754–2813) → `handleMarkerHover()`.
+//   - the editing target-element live re-resolution inside `startEditAnnotation`
+//     (L1884–1923) → `handleEditTracking()`. The list mutation (`setEditingAnnotation`)
+//     stays in the annotations controller (#16); this only owns the live DOM
+//     re-resolution, the symmetric counterpart of `handleMarkerHover`.
 //   - the exit/renumber choreography inside `deleteAnnotation` (L2715–2748;
 //     the *list mutation* belongs to the annotations controller, #16) →
 //     `startDelete()`.
@@ -50,9 +54,10 @@
 //
 // DOM-free by design for the render layers: upstream renders two marker layers
 // (scrolling `y - scrollY` vs `isFixed`, L4183–4265); this controller only
-// supplies the state they read, so jsdom tests stay simple. The one DOM-touching
-// method is `handleMarkerHover`, which re-resolves an annotation's element(s) by
-// hit-testing their stored bounding-box centre for live position tracking.
+// supplies the state they read, so jsdom tests stay simple. The two DOM-touching
+// methods are `handleMarkerHover` and `handleEditTracking`, which re-resolve an
+// annotation's element(s) by hit-testing their stored bounding-box centre for live
+// position tracking — on hover and on entering edit, respectively.
 //
 // Out of scope (issue #18), left as `// DIVERGENCE(upstream):` markers at the
 // omission sites:
@@ -164,6 +169,12 @@ export class MarkersController {
 	hoveredTargetElement = $state<HTMLElement | null>(null);
 	/** Re-resolved elements under a hovered multi-select marker (L413–415). */
 	hoveredTargetElements = $state<HTMLElement[]>([]);
+
+	// --- Editing live position tracking (upstream L412, L419–425) ----------------
+	/** Re-resolved element under the annotation being edited (single-select, L412). */
+	editingTargetElement = $state<HTMLElement | null>(null);
+	/** Re-resolved elements under the multi-select annotation being edited (L419–425). */
+	editingTargetElements = $state<HTMLElement[]>([]);
 
 	// --- Scroll tracking (upstream L426–427, L1197–1219) -------------------------
 	/** Current `window.scrollY`; the scrolling marker layer subtracts it (L426). */
@@ -401,6 +412,70 @@ export class MarkersController {
 		} else {
 			this.hoveredTargetElement = null;
 			this.hoveredTargetElements = [];
+		}
+	}
+
+	/**
+	 * Re-resolve the editing annotation's element(s) for live position tracking
+	 * while its edit popup is open. Pass `null` on edit-close to clear. Port of the
+	 * live-resolution half of `startEditAnnotation` (index.tsx L1880–1923): clears
+	 * the hover state (upstream L1880–1882), then resolves multi-select boxes via
+	 * `deepElementFromPoint` at each box centre (L1885–1895 — note this differs from
+	 * `handleMarkerHover`, which uses `elementsFromPoint` + a marker/root skip), or a
+	 * single element with the same size-ratio sanity check the hover path uses.
+	 *
+	 * The toolbar calls this whenever an annotation is opened for editing and clears
+	 * it on save/cancel/delete — the symmetric counterpart of `handleMarkerHover`.
+	 */
+	handleEditTracking(annotation: Annotation | null): void {
+		// Entering edit clears any hover highlight (upstream L1880–1882).
+		this.hoveredMarkerId = null;
+		this.hoveredTargetElement = null;
+		this.hoveredTargetElements = [];
+
+		if (!annotation) {
+			this.editingTargetElement = null;
+			this.editingTargetElements = [];
+			return;
+		}
+
+		if (annotation.elementBoundingBoxes?.length) {
+			// Cmd+shift+click: find an element at each bounding-box center.
+			const elements: HTMLElement[] = [];
+			for (const bb of annotation.elementBoundingBoxes) {
+				const centerX = bb.x + bb.width / 2;
+				const centerY = bb.y + bb.height / 2 - window.scrollY;
+				const el = deepElementFromPoint(centerX, centerY);
+				if (el) elements.push(el);
+			}
+			this.editingTargetElements = elements;
+			this.editingTargetElement = null;
+		} else if (annotation.boundingBox) {
+			// Single element.
+			const bb = annotation.boundingBox;
+			const centerX = bb.x + bb.width / 2;
+			const centerY = annotation.isFixed
+				? bb.y + bb.height / 2
+				: bb.y + bb.height / 2 - window.scrollY;
+			const el = deepElementFromPoint(centerX, centerY);
+
+			// Reject a much-smaller hit (probably a child of the real target).
+			if (el) {
+				const elRect = el.getBoundingClientRect();
+				const widthRatio = elRect.width / bb.width;
+				const heightRatio = elRect.height / bb.height;
+				if (widthRatio < 0.5 || heightRatio < 0.5) {
+					this.editingTargetElement = null;
+				} else {
+					this.editingTargetElement = el;
+				}
+			} else {
+				this.editingTargetElement = null;
+			}
+			this.editingTargetElements = [];
+		} else {
+			this.editingTargetElement = null;
+			this.editingTargetElements = [];
 		}
 	}
 
