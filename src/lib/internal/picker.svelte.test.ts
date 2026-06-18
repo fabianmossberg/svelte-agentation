@@ -338,6 +338,40 @@ describe('PickerController — click → pending annotation', () => {
 		fire('click', 10, 10, button);
 		expect(controller.hoverInfo).toBeNull();
 	});
+
+	it('captures an active text selection as selectedText, trimmed and capped at 500 chars', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		// Selection longer than the 500-char cap, padded so the trim is exercised too.
+		const raw = '  ' + 'a'.repeat(600) + '  ';
+		vi.spyOn(window, 'getSelection').mockReturnValue({
+			toString: () => raw
+		} as unknown as Selection);
+
+		const p = appendEl('p', (el) => (el.textContent = 'paragraph'));
+		hitTestReturns(p);
+		fire('click', 10, 10, p);
+
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.selectedText).toBe('a'.repeat(500));
+	});
+
+	it('leaves selectedText undefined for a whitespace-only selection', () => {
+		const { controller, onPick } = makeController();
+		controller.activate();
+
+		vi.spyOn(window, 'getSelection').mockReturnValue({
+			toString: () => '   \n\t  '
+		} as unknown as Selection);
+
+		const p = appendEl('p', (el) => (el.textContent = 'paragraph'));
+		hitTestReturns(p);
+		fire('click', 10, 10, p);
+
+		const pending = onPick.mock.calls[0][0] as PendingAnnotation;
+		expect(pending.selectedText).toBeUndefined();
+	});
 });
 
 describe('PickerController — listener cleanup', () => {
